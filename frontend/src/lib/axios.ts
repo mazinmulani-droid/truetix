@@ -1,5 +1,6 @@
 import axios, { AxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/store/useAuthStore';
+import { API_URL } from '@/lib/constants';
 
 // Override Axios types to account for the interceptor returning response.data
 declare module 'axios' {
@@ -17,7 +18,7 @@ declare module 'axios' {
 
 // Base API instance
 export const api = axios.create({
-  baseURL: 'http://localhost:4000/api/v1',
+  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -56,7 +57,7 @@ api.interceptors.response.use(
           return Promise.reject(error);
         }
 
-        const res = await axios.post('http://localhost:4000/api/v1/auth/refresh', {
+        const res = await axios.post(`${API_URL}/auth/refresh`, {
           refreshToken,
         });
 

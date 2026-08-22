@@ -2,11 +2,11 @@ import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { buttonVariants } from '@/components/ui/button';
 import { BannerSlider } from '@/components/home/banner-slider';
-import { Play, Ticket } from 'lucide-react';
+import { API_URL } from '@/lib/constants';
 
 async function getHomeData() {
   try {
-    const res = await fetch('http://localhost:4000/api/v1/home', { cache: 'no-store' });
+    const res = await fetch(`${API_URL}/home`, { cache: 'no-store' });
     if (!res.ok) return null;
     const json = await res.json();
     return json.data;

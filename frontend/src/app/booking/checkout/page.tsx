@@ -20,6 +20,7 @@ import {
 import { useBookingStore } from '@/store/useBookingStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { QRCodeSVG } from 'qrcode.react';
+import { API_URL } from '@/lib/constants';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -68,7 +69,7 @@ export default function CheckoutPage() {
     // 2. Actually left the page (closed tab or reloaded) - send beacon
     const handleUnload = () => {
       if (showtimeId && selectedSeats.length > 0 && accessToken) {
-        const url = 'http://localhost:4000/api/v1/bookings/release-seat';
+        const url = `${API_URL}/bookings/release-seat`;
         const body = JSON.stringify({ 
           showtimeId, 
           seatIds: selectedSeats.map(s => s.id) 
@@ -119,7 +120,7 @@ export default function CheckoutPage() {
     
     try {
       const res = await axios.post(
-        'http://localhost:4000/api/v1/bookings/checkout', 
+        `${API_URL}/bookings/checkout`, 
         {
           reservationId,
           showtimeId,
@@ -138,10 +139,9 @@ export default function CheckoutPage() {
         
         if (paymentMethod === 'VNPAY') {
           // Rewrite the backend mock gateway URL to the frontend's mock gateway
-          const frontendPaymentUrl = paymentUrl.replace(
-            'http://localhost:4000/api/v1/payments/vnpay/mock-gateway',
-            'http://localhost:3000/payment/mock-gateway'
-          );
+          const frontendPaymentUrl = paymentUrl.includes('/api/v1/payments/vnpay/mock-gateway')
+            ? paymentUrl.replace(/https?:\/\/[^\/]+\/api\/v1\/payments\/vnpay\/mock-gateway/, '/payment/mock-gateway')
+            : paymentUrl;
           window.location.href = frontendPaymentUrl;
         } else if (paymentMethod === 'VIETQR') {
           setPaymentQr(paymentUrl);
@@ -386,7 +386,7 @@ export default function CheckoutPage() {
                 // Call release seat API before executing the exit action
                 try {
                   await axios.post(
-                    'http://localhost:4000/api/v1/bookings/release-seat',
+                    `${API_URL}/bookings/release-seat`,
                     { 
                       showtimeId, 
                       seatIds: selectedSeats.map(s => s.id) 

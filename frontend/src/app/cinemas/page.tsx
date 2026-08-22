@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { MapPin, Phone } from 'lucide-react';
+import { API_URL } from '@/lib/constants';
 
 async function getCinemas() {
   try {
-    const res = await fetch('http://localhost:4000/api/v1/cinemas', { next: { revalidate: 60 } });
+    const res = await fetch(`${API_URL}/cinemas`, { next: { revalidate: 60 } });
     if (!res.ok) return [];
     const json = await res.json();
     return Array.isArray(json.data) ? json.data : [];

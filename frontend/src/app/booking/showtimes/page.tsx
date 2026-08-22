@@ -2,11 +2,12 @@ import Link from 'next/link';
 import { Clock, Calendar, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { API_URL } from '@/lib/constants';
 
 // Example fetching function (in a real app, this would use fetch with filters)
 async function getShowtimes() {
   try {
-    const res = await fetch(`http://localhost:4000/api/v1/showtimes`, { next: { revalidate: 0 } });
+    const res = await fetch(`${API_URL}/showtimes`, { next: { revalidate: 0 } });
     if (!res.ok) {
       return [];
     }

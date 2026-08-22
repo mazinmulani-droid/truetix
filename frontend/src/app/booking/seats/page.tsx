@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { useBookingStore } from '@/store/useBookingStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { io } from 'socket.io-client';
+import { SOCKET_URL } from '@/lib/constants';
 
 interface Seat {
   id: string; // row + col e.g. A1
@@ -110,7 +111,7 @@ function SeatsContent() {
     fetchMatrix();
 
     // Real-time updates via Socket.io
-    const socket = io('http://localhost:4000');
+    const socket = io(SOCKET_URL);
     
     socket.emit('join:showtime', { showtimeId });
 

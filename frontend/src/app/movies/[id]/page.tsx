@@ -3,10 +3,11 @@ import { notFound } from 'next/navigation';
 import { Play, Clock, Calendar, Film } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BookTicketModal } from '@/components/movie/book-ticket-modal';
+import { API_URL } from '@/lib/constants';
 
 async function getMovie(id: string) {
   try {
-    const res = await fetch(`http://localhost:4000/api/v1/movies/${id}`, { next: { revalidate: 0 } });
+    const res = await fetch(`${API_URL}/movies/${id}`, { next: { revalidate: 0 } });
     if (!res.ok) {
       if (res.status === 404) return null;
       throw new Error('Failed to fetch movie');

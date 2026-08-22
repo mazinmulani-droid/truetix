@@ -1,10 +1,11 @@
 import { notFound } from 'next/navigation';
 import { MapPin, Phone, Monitor, Popcorn, Car } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { API_URL } from '@/lib/constants';
 
 async function getCinema(id: string) {
   try {
-    const res = await fetch(`http://localhost:4000/api/v1/cinemas/${id}`, { next: { revalidate: 0 } });
+    const res = await fetch(`${API_URL}/cinemas/${id}`, { next: { revalidate: 0 } });
     if (!res.ok) {
       if (res.status === 404) return null;
       throw new Error('Failed to fetch cinema');

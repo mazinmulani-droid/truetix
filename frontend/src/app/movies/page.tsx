@@ -2,10 +2,11 @@ import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Play, Ticket } from 'lucide-react';
+import { API_URL } from '@/lib/constants';
 
 async function getMovies(status: 'NOW_SHOWING' | 'COMING_SOON') {
   try {
-    const res = await fetch(`http://localhost:4000/api/v1/movies?status=${status}&limit=20`, { next: { revalidate: 60 } });
+    const res = await fetch(`${API_URL}/movies?status=${status}&limit=20`, { next: { revalidate: 60 } });
     if (!res.ok) return [];
     const json = await res.json();
     return Array.isArray(json.data) ? json.data : [];

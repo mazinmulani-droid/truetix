@@ -20,6 +20,7 @@ import {
 import { useBookingStore } from '@/store/useBookingStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Input } from '@/components/ui/input';
+import { API_URL } from '@/lib/constants';
 
 export default function FBAndVoucherPage() {
   const router = useRouter();
@@ -88,7 +89,7 @@ export default function FBAndVoucherPage() {
     // 2. Actually left the page (closed tab or reloaded) - send beacon
     const handleUnload = () => {
       if (showtimeId && selectedSeats.length > 0 && accessToken) {
-        const url = 'http://localhost:4000/api/v1/bookings/release-seat';
+        const url = `${API_URL}/bookings/release-seat`;
         const body = JSON.stringify({ 
           showtimeId, 
           seatIds: selectedSeats.map(s => s.id) 
@@ -143,7 +144,7 @@ export default function FBAndVoucherPage() {
 
   useEffect(() => {
     // Fetch Combos
-    axios.get('http://localhost:4000/api/v1/combos')
+    axios.get(`${API_URL}/combos`)
       .then(res => {
         if (res.data.success) setAvailableCombos(res.data.data);
       })
@@ -151,7 +152,7 @@ export default function FBAndVoucherPage() {
 
     // Fetch Vouchers if logged in
     if (isAuthenticated && accessToken) {
-      axios.get('http://localhost:4000/api/v1/vouchers/wallet', {
+      axios.get(`${API_URL}/vouchers/wallet`, {
         headers: { Authorization: `Bearer ${accessToken}` }
       })
         .then(res => {
@@ -172,7 +173,7 @@ export default function FBAndVoucherPage() {
 
     try {
       const res = await axios.post(
-        'http://localhost:4000/api/v1/vouchers/apply',
+        `${API_URL}/vouchers/apply`,
         {
           code: voucherCode,
           orderAmount: getTotalAmount(),
@@ -359,7 +360,7 @@ export default function FBAndVoucherPage() {
                 isConfirmedExitRef.current = true;
                 try {
                   await axios.post(
-                    'http://localhost:4000/api/v1/bookings/release-seat',
+                    `${API_URL}/bookings/release-seat`,
                     { 
                       showtimeId, 
                       seatIds: selectedSeats.map(s => s.id) 
