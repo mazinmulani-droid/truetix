@@ -20,5 +20,7 @@ RUN npx prisma generate
 RUN npm run build
 
 EXPOSE 4000
+ENV PORT=4000
+ENV NODE_ENV=production
 
 CMD ["sh", "-c", "npx prisma db push && npx prisma db seed && node dist/src/main"]
