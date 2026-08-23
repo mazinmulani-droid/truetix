@@ -57,7 +57,7 @@ export default async function CinemaDetailPage({ params }: { params: Promise<{ i
           
           {/* Amenities */}
           <div className="p-8 border-t border-border/50 bg-card/50">
-            <h3 className="text-lg font-bold mb-4 uppercase">Cơ sở vật chất</h3>
+            <h3 className="text-lg font-bold mb-4 uppercase">Facilities & Amenities</h3>
             <div className="flex flex-wrap gap-4">
               {cinema.amenities && cinema.amenities.map((amenity: string, idx: number) => (
                 <div key={idx} className="flex items-center gap-2 bg-muted/50 px-4 py-2 rounded-full border border-border">
@@ -71,7 +71,7 @@ export default async function CinemaDetailPage({ params }: { params: Promise<{ i
 
         {/* Halls Section */}
         <div className="space-y-6">
-          <h2 className="text-3xl font-bold border-l-4 border-primary pl-4 uppercase">Hệ Thống Phòng Chiếu</h2>
+          <h2 className="text-3xl font-bold border-l-4 border-primary pl-4 uppercase">Screens & Auditoriums</h2>
           
           {cinema.halls && cinema.halls.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -89,7 +89,7 @@ export default async function CinemaDetailPage({ params }: { params: Promise<{ i
             </div>
           ) : (
             <div className="bg-card border border-border rounded-lg p-10 text-center text-muted-foreground">
-              Rạp này chưa cấu hình phòng chiếu.
+              This cinema has not configured any screens yet.
             </div>
           )}
         </div>

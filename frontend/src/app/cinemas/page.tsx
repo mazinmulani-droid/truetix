@@ -22,7 +22,7 @@ export default async function CinemasPage() {
   const cinemasByCity = cinemas.reduce((acc: any, cinema: any) => {
     const cityName = (typeof cinema.city === 'object' && cinema.city !== null) 
       ? cinema.city.name 
-      : cinema.city || 'Khác';
+      : cinema.city || 'Other';
       
     if (!acc[cityName]) {
       acc[cityName] = [];
@@ -37,7 +37,7 @@ export default async function CinemasPage() {
         <div className="flex items-center justify-center mb-12">
           <div className="flex items-center gap-4">
             <div className="w-1.5 h-8 bg-amber-500 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.8)]" />
-            <h1 className="text-4xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-600 py-2 leading-relaxed">Hệ Thống Rạp ClGV</h1>
+            <h1 className="text-4xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-600 py-2 leading-relaxed">ClGV Cinemas Network</h1>
             <div className="w-1.5 h-8 bg-amber-500 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.8)]" />
           </div>
         </div>
@@ -77,7 +77,7 @@ export default async function CinemasPage() {
         </div>
       ) : (
         <div className="text-center py-20 text-muted-foreground">
-          Không có thông tin hệ thống rạp.
+          No cinema information available.
         </div>
       )}
       </div>

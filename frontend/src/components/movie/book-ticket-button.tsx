@@ -32,7 +32,7 @@ export function BookTicketButton({ movieId, closestShowtimeId }: { movieId: stri
       onClick={handleBookTicket}
     >
       <Ticket className="w-5 h-5 mr-2" />
-      Mua Vé Ngay
+      Book Tickets Now
     </Button>
   );
 }

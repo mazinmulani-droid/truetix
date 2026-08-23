@@ -64,7 +64,7 @@ export default function FBAndVoucherPage() {
 
       if (diff <= 0) {
         clearInterval(timer);
-        toast.error('Thời gian giữ ghế đã hết. Vui lòng đặt lại.');
+        toast.error('Seat reservation time has expired. Please select your seats again.');
         router.push('/booking/showtimes');
       } else {
         const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
@@ -166,7 +166,7 @@ export default function FBAndVoucherPage() {
     if (!voucherCode) return;
     
     if (!isAuthenticated || !accessToken) {
-      toast.info('Vui lòng đăng nhập để sử dụng mã giảm giá');
+      toast.info('Please log in to apply discount vouchers');
       router.push('/login?redirect=/booking/fb');
       return;
     }
@@ -188,17 +188,17 @@ export default function FBAndVoucherPage() {
           code: voucherCode, 
           discountAmount: res.data.data.discountAmount 
         });
-        toast.success(`Áp dụng mã giảm giá thành công! Giảm ${res.data.data.discountAmount.toLocaleString('vi-VN')} đ`);
+        toast.success(`Voucher applied successfully! Discount: ${res.data.data.discountAmount.toLocaleString('vi-VN')} ₫`);
       }
     } catch (error: any) {
-      const message = error.response?.data?.message || 'Mã giảm giá không hợp lệ hoặc đã hết hạn.';
+      const message = error.response?.data?.message || 'Invalid or expired voucher code.';
       toast.error(message);
     }
   };
 
   const handleNext = () => {
     if (!isAuthenticated) {
-      toast.info('Vui lòng đăng nhập để tiếp tục thanh toán');
+      toast.info('Please log in to proceed to checkout');
       router.push('/login?redirect=/booking/checkout');
       return;
     }
@@ -212,9 +212,9 @@ export default function FBAndVoucherPage() {
       {/* Top Timer Bar */}
       <div className="bg-primary/10 border-b border-primary/20 sticky top-0 z-40 backdrop-blur-md">
         <div className="container mx-auto px-4 h-12 flex justify-between items-center text-sm font-medium">
-          <span>Mã giữ chỗ: <span className="text-primary font-bold">{reservationId?.substring(0, 8)}</span></span>
+          <span>Hold Reference: <span className="text-primary font-bold">{reservationId?.substring(0, 8)}</span></span>
           <span className="flex items-center gap-2 text-primary font-bold">
-            <Clock className="w-4 h-4" /> Thời gian giữ ghế: {timeLeft}
+            <Clock className="w-4 h-4" /> Time Remaining: {timeLeft}
           </span>
         </div>
       </div>
@@ -222,9 +222,9 @@ export default function FBAndVoucherPage() {
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="space-y-8">
 
-          {/* Bắp Nước Section */}
+          {/* Food & Drinks Section */}
           <section>
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"><ShoppingBag className="text-primary" /> Combo Bắp Nước</h2>
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"><ShoppingBag className="text-primary" /> Food & Drink Combos</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {availableCombos.length > 0 ? availableCombos.map((combo) => {
                 const selected = combos.find(c => c.comboId === combo.id);
@@ -271,25 +271,25 @@ export default function FBAndVoucherPage() {
                 )
               }) : (
                 <div className="col-span-2 p-8 text-center text-muted-foreground border rounded-lg">
-                  Tạm thời chưa có combo bắp nước nào.
+                  No food & drink combos available at the moment.
                 </div>
               )}
             </div>
           </section>
 
-          {/* Vouchers & Điểm Thưởng Section */}
+          {/* Vouchers & Rewards Section */}
           <section>
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"><Ticket className="text-primary" /> Khuyến Mãi & Voucher</h2>
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"><Ticket className="text-primary" /> Offers & Vouchers</h2>
             <Card className="bg-card border-border">
               <CardContent className="p-6 space-y-6">
                 <div className="flex flex-col md:flex-row gap-4">
                   <Input
-                    placeholder="Nhập mã giảm giá CGV..."
+                    placeholder="Enter voucher promo code..."
                     value={voucherCode}
                     onChange={(e) => setVoucherCode(e.target.value)}
                     className="flex-1"
                   />
-                  <Button onClick={handleApplyVoucher} variant="secondary">Áp Dụng</Button>
+                  <Button onClick={handleApplyVoucher} variant="secondary">Apply</Button>
                 </div>
 
                 {appliedVoucher && (
@@ -297,11 +297,11 @@ export default function FBAndVoucherPage() {
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="text-primary w-5 h-5" />
                       <div>
-                        <p className="font-bold">Đã áp dụng mã: {appliedVoucher.code}</p>
-                        <p className="text-sm text-primary">Giảm {appliedVoucher.discountAmount.toLocaleString('vi-VN')} ₫</p>
+                        <p className="font-bold">Voucher Applied: {appliedVoucher.code}</p>
+                        <p className="text-sm text-primary">Discount: {appliedVoucher.discountAmount.toLocaleString('vi-VN')} ₫</p>
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => applyVoucher(null)}>Hủy</Button>
+                    <Button variant="ghost" size="sm" onClick={() => applyVoucher(null)}>Remove</Button>
                   </div>
                 )}
               </CardContent>
@@ -318,12 +318,12 @@ export default function FBAndVoucherPage() {
               setExitAction(() => () => router.back());
               setShowExitPrompt(true);
           }} className="hidden md:flex">
-            <ChevronLeft className="mr-2 w-4 h-4" /> Quay Lại
+            <ChevronLeft className="mr-2 w-4 h-4" /> Go Back
           </Button>
 
           <div className="flex items-center gap-8 flex-1 justify-end">
             <div className="text-right">
-              <p className="text-sm text-muted-foreground mb-1">Tổng cộng:</p>
+              <p className="text-sm text-muted-foreground mb-1">Total:</p>
               <div className="flex items-end gap-2 flex-col md:flex-row">
                 {appliedVoucher && (
                   <span className="text-sm line-through text-muted-foreground">
@@ -338,7 +338,7 @@ export default function FBAndVoucherPage() {
               onClick={handleNext}
               className="text-lg font-bold px-8 shadow-lg shadow-primary/30"
             >
-              Thanh Toán <ChevronRight className="ml-2 w-5 h-5" />
+              Checkout <ChevronRight className="ml-2 w-5 h-5" />
             </Button>
           </div>
         </div>
@@ -347,13 +347,13 @@ export default function FBAndVoucherPage() {
       <AlertDialog open={showExitPrompt} onOpenChange={setShowExitPrompt}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hủy thanh toán và thoát?</AlertDialogTitle>
+            <AlertDialogTitle>Cancel booking and exit?</AlertDialogTitle>
             <AlertDialogDescription>
-              Bạn có chắc chắn muốn thoát khỏi quá trình đặt vé? Chỗ ngồi bạn đã chọn sẽ bị hủy giữ và thông tin sẽ bị xóa.
+              Are you sure you want to leave the booking process? Your reserved seats will be released and your selections cleared.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Ở lại trang</AlertDialogCancel>
+            <AlertDialogCancel>Stay on page</AlertDialogCancel>
             <AlertDialogAction 
               className="bg-destructive hover:bg-destructive/90 text-white"
               onClick={async () => {
@@ -374,7 +374,7 @@ export default function FBAndVoucherPage() {
                 if (exitAction) exitAction();
               }}
             >
-              Đồng ý thoát
+              Confirm & Exit
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

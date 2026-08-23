@@ -24,7 +24,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'ClGV - Film Ticket Platform',
-  description: 'Trải nghiệm điện ảnh đỉnh cao phong cách CGV',
+  description: 'Experience world-class cinema with ClGV',
 };
 
 export default function RootLayout({
@@ -33,7 +33,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${oswald.variable} ${oswald.className} h-full antialiased dark`}>
+    <html lang="en-GB" className={`${geistSans.variable} ${geistMono.variable} ${oswald.variable} ${oswald.className} h-full antialiased dark`}>
       <body className="min-h-full flex flex-col relative bg-black text-foreground">
         {/* Global Ambient Lights */}
         <div className="fixed top-[-10%] right-[-5%] w-[500px] h-[500px] bg-primary/10 rounded-full blur-[150px] pointer-events-none z-0" />

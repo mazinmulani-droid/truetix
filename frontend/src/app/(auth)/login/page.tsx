@@ -36,11 +36,11 @@ function LoginFormContent() {
       if (res.success) {
         const { user, accessToken, refreshToken } = res.data;
         setAuth(user, accessToken, refreshToken);
-        toast.success('Đăng nhập thành công');
+        toast.success('Logged in successfully');
         router.push(redirectUrl);
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.error?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
+      toast.error(error.response?.data?.error?.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
@@ -50,9 +50,9 @@ function LoginFormContent() {
     <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Đăng nhập</CardTitle>
+          <CardTitle className="text-2xl font-bold">Log In</CardTitle>
           <CardDescription>
-            Nhập email và mật khẩu của bạn để tiếp tục
+            Enter your email and password to continue
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleLogin}>
@@ -69,7 +69,7 @@ function LoginFormContent() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Mật khẩu</Label>
+              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -81,12 +81,12 @@ function LoginFormContent() {
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Đang xử lý...' : 'Đăng nhập'}
+              {loading ? 'Processing...' : 'Log In'}
             </Button>
             <div className="text-sm text-center text-muted-foreground">
-              Chưa có tài khoản?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/register" className="text-primary hover:underline">
-                Đăng ký ngay
+                Register now
               </Link>
             </div>
           </CardFooter>
@@ -98,7 +98,7 @@ function LoginFormContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-[calc(100vh-4rem)] p-4">Đang tải...</div>}>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[calc(100vh-4rem)] p-4">Loading...</div>}>
       <LoginFormContent />
     </Suspense>
   );

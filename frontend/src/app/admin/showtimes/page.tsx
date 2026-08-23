@@ -47,7 +47,7 @@ export default function AdminShowtimesPage() {
       if (cnRes.success) setCinemas(Array.isArray(cnRes.data) ? cnRes.data : []);
     } catch (error) {
       console.error('Failed to fetch data', error);
-      toast.error('Lỗi khi tải dữ liệu');
+      toast.error('Failed to load showtimes data');
     } finally {
       setLoading(false);
     }
@@ -101,9 +101,9 @@ export default function AdminShowtimesPage() {
         
         if (newStart < existingEnd + cleaningTime && newEnd + cleaningTime > existingStart) {
            const title = st.movie?.title || 'Unknown';
-           const sTime = new Date(st.startTime).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit', hour12: false});
-           const eTime = new Date(st.endTime).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit', hour12: false});
-           toast.error(`Lỗi: Bị trùng lịch với phim "${title}" (${sTime} - ${eTime}). Vui lòng chọn giờ khác để đảm bảo khoảng nghỉ 30 phút dọn rạp!`, { duration: 6000 });
+           const sTime = new Date(st.startTime).toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit', hour12: false});
+           const eTime = new Date(st.endTime).toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit', hour12: false});
+           toast.error(`Schedule conflict with film "${title}" (${sTime} - ${eTime}). Please choose another time allowing for a 30-minute cleaning buffer!`, { duration: 6000 });
            return;
         }
       }
@@ -119,21 +119,21 @@ export default function AdminShowtimesPage() {
 
       const res = await api.post('/admin/showtimes', payload);
       if (res.success) {
-        toast.success('Thêm lịch chiếu thành công');
+        toast.success('Showtime scheduled successfully');
         setIsAddOpen(false);
         fetchData();
       } else {
         if (res.error?.code === 'SHOWTIME_CONFLICT') {
-          toast.error('Xung đột lịch chiếu! Vui lòng chọn giờ chiếu khác cách ít nhất 30 phút so với các suất chiếu hiện tại.');
+          toast.error('Showtime conflict! Please select a showtime at least 30 minutes apart from existing screenings.');
         } else {
-          toast.error(res.error?.message || res.message || 'Có lỗi xảy ra');
+          toast.error(res.error?.message || res.message || 'An error occurred');
         }
       }
     } catch (error: any) {
       if (error.response?.data?.error?.code === 'SHOWTIME_CONFLICT') {
-        toast.error('Lỗi: Khoảng cách giữa các suất chiếu cùng phòng phải cách nhau ít nhất 30 phút để dọn dẹp!');
+        toast.error('Error: Screenings in the same auditorium must be at least 30 minutes apart for auditorium cleaning!');
       } else {
-        toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Lỗi hệ thống');
+        toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Server error');
       }
     }
   };
@@ -141,62 +141,62 @@ export default function AdminShowtimesPage() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold border-l-4 border-primary pl-4">Quản Lý Lịch Chiếu</h1>
+        <h1 className="text-3xl font-bold border-l-4 border-primary pl-4">Manage Showtimes</h1>
         
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger render={<Button className="gap-2" />}>
-            <Plus className="h-4 w-4" /> Thêm lịch chiếu
+            <Plus className="h-4 w-4" /> Add Showtime
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>Thêm lịch chiếu mới</DialogTitle>
-              <DialogDescription>Chọn phim, rạp và thời gian chiếu. Hệ thống sẽ tự động tính giờ kết thúc.</DialogDescription>
+              <DialogTitle>Schedule New Showtime</DialogTitle>
+              <DialogDescription>Select the film, cinema venue, auditorium, and screening time. End time is calculated automatically.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
-                <Label>Phim</Label>
+                <Label>Film</Label>
                 <select 
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={formData.movieId}
                   onChange={e => setFormData({...formData, movieId: e.target.value})}
                 >
-                  <option value="">-- Chọn phim --</option>
+                  <option value="">-- Select Film --</option>
                   {movies.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
-                <Label>Cụm Rạp</Label>
+                <Label>Cinema</Label>
                 <select 
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={formData.cinemaId}
                   onChange={e => setFormData({...formData, cinemaId: e.target.value})}
                 >
-                  <option value="">-- Chọn rạp --</option>
+                  <option value="">-- Select Cinema --</option>
                   {cinemas.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
-                <Label>Phòng chiếu</Label>
+                <Label>Screen / Auditorium</Label>
                 <select 
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-50"
                   value={formData.hallId}
                   onChange={e => setFormData({...formData, hallId: e.target.value})}
                   disabled={!formData.cinemaId || selectedCinemaHalls.length === 0}
                 >
-                  <option value="">-- Chọn phòng --</option>
+                  <option value="">-- Select Screen --</option>
                   {selectedCinemaHalls.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Ngày chiếu</Label>
+                  <Label>Date</Label>
                   <Input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Giờ chiếu (HH:mm)</Label>
+                  <Label>Start Time (HH:mm)</Label>
                   <Select value={formData.startTime} onValueChange={(val) => setFormData({...formData, startTime: val})}>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Chọn giờ" />
+                      <SelectValue placeholder="Select Time" />
                     </SelectTrigger>
                     <SelectContent className="max-h-[250px]">
                       {Array.from({ length: 24 * 12 }).map((_, i) => {
@@ -210,13 +210,13 @@ export default function AdminShowtimesPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Giá vé cơ bản (VNĐ)</Label>
+                <Label>Base Ticket Price (VND)</Label>
                 <Input type="number" value={formData.basePrice} onChange={e => setFormData({...formData, basePrice: Number(e.target.value)})} />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddOpen(false)}>Hủy</Button>
-              <Button onClick={handleAddShowtime} disabled={!formData.movieId || !formData.hallId}>Lên lịch</Button>
+              <Button variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
+              <Button onClick={handleAddShowtime} disabled={!formData.movieId || !formData.hallId}>Schedule Showtime</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -227,7 +227,7 @@ export default function AdminShowtimesPage() {
           <Search className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
           <Input 
             className="pl-9" 
-            placeholder="Tìm theo tên phim hoặc rạp..." 
+            placeholder="Search by film title or cinema..." 
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
@@ -237,11 +237,11 @@ export default function AdminShowtimesPage() {
             type="date" 
             value={filterDate}
             onChange={e => setFilterDate(e.target.value)}
-            title="Lọc theo ngày"
+            title="Filter by date"
           />
         </div>
         {(searchTerm || filterDate) && (
-          <Button variant="ghost" onClick={() => { setSearchTerm(''); setFilterDate(''); }}>Xóa lọc</Button>
+          <Button variant="ghost" onClick={() => { setSearchTerm(''); setFilterDate(''); }}>Clear Filters</Button>
         )}
       </div>
 
@@ -249,14 +249,14 @@ export default function AdminShowtimesPage() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead>Phim</TableHead>
-              <TableHead colSpan={4}>Thông tin suất chiếu</TableHead>
+              <TableHead>Film</TableHead>
+              <TableHead colSpan={4}>Screening Details</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-10">Đang tải...</TableCell>
+                <TableCell colSpan={5} className="text-center py-10">Loading showtimes...</TableCell>
               </TableRow>
             ) : (() => {
               const filtered = showtimes.filter(st => {
@@ -269,7 +269,7 @@ export default function AdminShowtimesPage() {
               if (filtered.length === 0) {
                 return (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">Không có suất chiếu nào phù hợp</TableCell>
+                    <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">No matching showtimes found</TableCell>
                   </TableRow>
                 );
               }
@@ -293,10 +293,10 @@ export default function AdminShowtimesPage() {
                     >
                       <TableCell className="font-bold flex items-center gap-2">
                         {isExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
-                        <Film className="w-4 h-4 text-primary" /> {group.movie?.title || 'Phim không xác định'}
+                        <Film className="w-4 h-4 text-primary" /> {group.movie?.title || 'Unknown Film'}
                       </TableCell>
                       <TableCell colSpan={4} className="text-muted-foreground text-sm font-medium">
-                        {group.showtimes.length} suất chiếu
+                        {group.showtimes.length} screenings scheduled
                       </TableCell>
                     </TableRow>
                     
@@ -307,10 +307,10 @@ export default function AdminShowtimesPage() {
                             <Table>
                               <TableHeader>
                                 <TableRow className="hover:bg-transparent">
-                                  <TableHead>Rạp / Phòng</TableHead>
-                                  <TableHead>Khởi chiếu</TableHead>
-                                  <TableHead>Giá vé</TableHead>
-                                  <TableHead>Tình trạng</TableHead>
+                                  <TableHead>Cinema / Screen</TableHead>
+                                  <TableHead>Date & Time</TableHead>
+                                  <TableHead>Ticket Price</TableHead>
+                                  <TableHead>Status</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
@@ -320,12 +320,12 @@ export default function AdminShowtimesPage() {
                                       <span className="font-semibold">{st.cinema?.name}</span> <span className="text-muted-foreground text-xs block">{st.hall?.name}</span>
                                     </TableCell>
                                     <TableCell>
-                                      <div className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(st.startTime).toLocaleDateString('vi-VN')}</div>
-                                      <div className="flex items-center gap-1 text-primary text-xs font-bold mt-1"><Clock className="w-3 h-3" /> {new Date(st.startTime).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit', hour12: false})}</div>
+                                      <div className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(st.startTime).toLocaleDateString('en-GB')}</div>
+                                      <div className="flex items-center gap-1 text-primary text-xs font-bold mt-1"><Clock className="w-3 h-3" /> {new Date(st.startTime).toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit', hour12: false})}</div>
                                     </TableCell>
                                     <TableCell>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(st.basePrice)}</TableCell>
                                     <TableCell>
-                                      <span className="px-2 py-1 rounded-full text-xs font-bold bg-green-500/20 text-green-500">Mở bán</span>
+                                      <span className="px-2 py-1 rounded-full text-xs font-bold bg-green-500/20 text-green-500">On Sale</span>
                                     </TableCell>
                                   </TableRow>
                                 ))}

@@ -22,8 +22,8 @@ export default async function Home() {
   if (!data) {
     return (
       <div className="container mx-auto px-4 py-20 text-center">
-        <h1 className="text-2xl font-bold text-destructive mb-4">Không thể tải dữ liệu trang chủ</h1>
-        <p className="text-muted-foreground">Vui lòng kiểm tra lại kết nối đến Backend Server.</p>
+        <h1 className="text-2xl font-bold text-destructive mb-4">Unable to load home page data</h1>
+        <p className="text-muted-foreground">Please check the connection to the backend server.</p>
       </div>
     );
   }
@@ -45,10 +45,10 @@ export default async function Home() {
         <div className="flex items-center justify-between mb-10">
           <div className="flex items-center gap-4">
             <div className="w-1.5 h-8 bg-primary rounded-full shadow-[0_0_10px_rgba(225,29,72,0.8)]" />
-            <h2 className="text-4xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 py-2 leading-relaxed">Phim Đang Chiếu</h2>
+            <h2 className="text-4xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 py-2 leading-relaxed">Now Showing</h2>
           </div>
           <Link href="/movies?status=NOW_SHOWING" className="text-sm font-bold uppercase tracking-widest text-primary hover:text-white transition-colors flex items-center gap-2 group">
-            Xem tất cả
+            View all
             <span className="group-hover:translate-x-1 transition-transform">→</span>
           </Link>
         </div>
@@ -75,7 +75,7 @@ export default async function Home() {
                         <Play className="w-5 h-5 text-white ml-1" />
                       </div>
                       <div className="px-4 py-2 bg-primary text-white text-sm font-bold uppercase rounded-full hover:bg-primary/90 flex items-center gap-2 shadow-[0_0_15px_rgba(225,29,72,0.5)] transition-transform hover:scale-105">
-                        <Ticket className="w-4 h-4" /> Mua Vé
+                        <Ticket className="w-4 h-4" /> Book Tickets
                       </div>
                     </div>
                   </div>
@@ -84,7 +84,7 @@ export default async function Home() {
                       {movie.title}
                     </h3>
                     <p className="text-xs text-muted-foreground line-clamp-1">
-                      {movie.genres?.join(', ') || 'Hành động, Tâm lý'}
+                      {movie.genres?.join(', ') || 'Action, Drama'}
                     </p>
                   </div>
                 </CardContent>
@@ -99,10 +99,10 @@ export default async function Home() {
         <div className="flex items-center justify-between mb-10">
           <div className="flex items-center gap-4">
             <div className="w-1.5 h-8 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
-            <h2 className="text-4xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 py-2 leading-relaxed">Phim Sắp Chiếu</h2>
+            <h2 className="text-4xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 py-2 leading-relaxed">Coming Soon</h2>
           </div>
           <Link href="/movies?status=COMING_SOON" className="text-sm font-bold uppercase tracking-widest text-blue-500 hover:text-white transition-colors flex items-center gap-2 group">
-            Xem tất cả
+            View all
             <span className="group-hover:translate-x-1 transition-transform">→</span>
           </Link>
         </div>
@@ -129,7 +129,7 @@ export default async function Home() {
                       {movie.title}
                     </h3>
                     <p className="text-xs text-blue-400/80 font-medium">
-                      {new Date(movie.releaseDate).toLocaleDateString('vi-VN')}
+                      {new Date(movie.releaseDate).toLocaleDateString('en-GB')}
                     </p>
                   </div>
                 </CardContent>
@@ -145,10 +145,10 @@ export default async function Home() {
           <div className="flex items-center justify-between mb-10">
             <div className="flex items-center gap-4">
               <div className="w-1.5 h-8 bg-amber-500 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.8)]" />
-              <h2 className="text-4xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-600 py-2 leading-relaxed">Rạp Nổi Bật</h2>
+              <h2 className="text-4xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-600 py-2 leading-relaxed">Featured Cinemas</h2>
             </div>
             <Link href="/cinemas" className="text-sm font-bold uppercase tracking-widest text-amber-500 hover:text-white transition-colors flex items-center gap-2 group">
-              Hệ Thống Rạp
+              All Cinemas
               <span className="group-hover:translate-x-1 transition-transform">→</span>
             </Link>
           </div>

@@ -51,64 +51,64 @@ export default function MembershipPage() {
         pointsToRedeem: parseInt(pointsToRedeem)
       });
       if (res.success) {
-        toast.success('Đổi điểm thành công!');
+        toast.success('Points redeemed successfully!');
         fetchHistory();
         fetchUser(); // Refresh user points
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.error?.message || 'Lỗi khi đổi điểm');
+      toast.error(error.response?.data?.error?.message || 'Error redeeming points');
     } finally {
       setIsRedeeming(false);
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-muted-foreground">Đang tải thông tin...</div>;
+  if (loading) return <div className="p-8 text-center text-muted-foreground">Loading details...</div>;
 
   return (
     <div className="p-8 space-y-8">
       <div className="flex items-center gap-3">
         <Award className="w-8 h-8 text-primary" />
-        <h1 className="text-3xl font-bold">Thành viên & Điểm</h1>
+        <h1 className="text-3xl font-bold">Membership & Rewards</h1>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <Card className="border-primary/20 bg-primary/5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-primary">
-              <Gift className="w-5 h-5" /> Đổi Quà (Redeem)
+              <Gift className="w-5 h-5" /> Redeem Rewards
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex justify-between items-center bg-background p-4 rounded-lg border border-border">
-              <span className="font-medium text-muted-foreground">Điểm hiện tại</span>
+              <span className="font-medium text-muted-foreground">Current Points</span>
               <span className="text-2xl font-bold text-white">{user?.points || 0} pts</span>
             </div>
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Chọn loại quà</label>
+                <label className="text-sm font-medium">Select Reward</label>
                 <Select value={rewardType} onValueChange={setRewardType}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Loại quà" />
+                    <SelectValue placeholder="Reward type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="TICKET_2D">Vé 2D (Tốn 100 điểm)</SelectItem>
-                    <SelectItem value="POPCORN_COMBO">Bắp Nước (Tốn 50 điểm)</SelectItem>
-                    <SelectItem value="DISCOUNT_VOUCHER_50K">Voucher 50K (Tốn 30 điểm)</SelectItem>
+                    <SelectItem value="TICKET_2D">2D Film Ticket (100 pts)</SelectItem>
+                    <SelectItem value="POPCORN_COMBO">Popcorn & Drink Combo (50 pts)</SelectItem>
+                    <SelectItem value="DISCOUNT_VOUCHER_50K">£5 Voucher (30 pts)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Số điểm sử dụng</label>
+                <label className="text-sm font-medium">Points to Use</label>
                 <Select value={pointsToRedeem} onValueChange={setPointsToRedeem}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Số điểm" />
+                    <SelectValue placeholder="Select points" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="30">30 Điểm</SelectItem>
-                    <SelectItem value="50">50 Điểm</SelectItem>
-                    <SelectItem value="100">100 Điểm</SelectItem>
+                    <SelectItem value="30">30 Points</SelectItem>
+                    <SelectItem value="50">50 Points</SelectItem>
+                    <SelectItem value="100">100 Points</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -118,7 +118,7 @@ export default function MembershipPage() {
                 onClick={handleRedeem}
                 disabled={isRedeeming || (user?.points || 0) < parseInt(pointsToRedeem)}
               >
-                {isRedeeming ? 'Đang xử lý...' : 'Đổi Điểm Ngay'}
+                {isRedeeming ? 'Processing...' : 'Redeem Now'}
               </Button>
             </div>
           </CardContent>
@@ -127,7 +127,7 @@ export default function MembershipPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <History className="w-5 h-5" /> Lịch Sử Điểm
+              <History className="w-5 h-5" /> Points History
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -136,7 +136,7 @@ export default function MembershipPage() {
                 {history.map((record: any, idx: number) => (
                   <div key={idx} className="flex justify-between items-center py-3 border-b border-border last:border-0">
                     <div>
-                      <p className="font-medium">{record.reason || 'Đổi quà / Tích điểm'}</p>
+                      <p className="font-medium">{record.reason || 'Reward redemption / Points earned'}</p>
                       <p className="text-xs text-muted-foreground">
                         {record.createdAt ? format(new Date(record.createdAt), 'dd/MM/yyyy HH:mm') : ''}
                       </p>
@@ -149,7 +149,7 @@ export default function MembershipPage() {
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                Chưa có lịch sử giao dịch điểm.
+                No points history available.
               </div>
             )}
           </CardContent>

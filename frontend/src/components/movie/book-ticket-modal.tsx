@@ -13,7 +13,7 @@ export function BookTicketModal({ movie }: { movie: any }) {
   const showtimesByDate: Record<string, any[]> = {};
   if (movie.showtimes && movie.showtimes.length > 0) {
     movie.showtimes.forEach((st: any) => {
-      const dateStr = new Date(st.startTime).toLocaleDateString('vi-VN');
+      const dateStr = new Date(st.startTime).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
       if (!showtimesByDate[dateStr]) showtimesByDate[dateStr] = [];
       showtimesByDate[dateStr].push(st);
     });
@@ -28,12 +28,12 @@ export function BookTicketModal({ movie }: { movie: any }) {
         />
       }>
         <Ticket className="w-5 h-5 mr-2" />
-        Mua Vé Ngay
+        Book Tickets Now
       </DialogTrigger>
       <DialogContent className="max-w-2xl border-border bg-card">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold uppercase text-primary border-b border-border pb-4 mb-2">
-            Chọn Lịch Chiếu - {movie.title}
+            Select Showtime - {movie.title}
           </DialogTitle>
         </DialogHeader>
         
@@ -46,7 +46,7 @@ export function BookTicketModal({ movie }: { movie: any }) {
                 {(() => {
                   const byCinema: Record<string, any[]> = {};
                   showtimes.forEach(st => {
-                    const cName = st.cinema?.name || 'Rạp Khác';
+                    const cName = st.cinema?.name || 'Other Cinema';
                     if (!byCinema[cName]) byCinema[cName] = [];
                     byCinema[cName].push(st);
                   });
@@ -62,7 +62,7 @@ export function BookTicketModal({ movie }: { movie: any }) {
                               className="border-primary/50 hover:bg-primary hover:text-white transition-colors"
                               onClick={() => setOpen(false)}
                             >
-                              {new Date(st.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                              {new Date(st.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
                             </Button>
                           </Link>
                         ))}
@@ -74,7 +74,7 @@ export function BookTicketModal({ movie }: { movie: any }) {
             ))
           ) : (
             <div className="bg-card border border-border rounded-lg p-8 text-center">
-              <p className="text-muted-foreground">Hiện chưa có lịch chiếu cho phim này.</p>
+              <p className="text-muted-foreground">No showtimes currently available for this film.</p>
             </div>
           )}
         </div>

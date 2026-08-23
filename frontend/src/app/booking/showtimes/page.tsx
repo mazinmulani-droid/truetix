@@ -28,8 +28,8 @@ export default async function ShowtimesPage({
   
   // Group showtimes by movie and cinema for display
   const grouped = showtimes.reduce((acc: any, st: any) => {
-    const movieTitle = st.movie?.title || 'Phim Chưa Rõ';
-    const cinemaName = st.cinema?.name || 'Rạp Khác';
+    const movieTitle = st.movie?.title || 'Unknown Film';
+    const cinemaName = st.cinema?.name || 'Other Cinema';
     if (!acc[movieTitle]) acc[movieTitle] = {};
     if (!acc[movieTitle][cinemaName]) acc[movieTitle][cinemaName] = [];
     acc[movieTitle][cinemaName].push(st);
@@ -39,13 +39,13 @@ export default async function ShowtimesPage({
   return (
     <div className="container mx-auto px-4 py-12 min-h-screen">
       <div className="text-center mb-12 space-y-4">
-        <h1 className="text-4xl font-bold uppercase tracking-tight text-primary">Lịch Chiếu Phim</h1>
-        <p className="text-muted-foreground">Chọn lịch chiếu để bắt đầu đặt vé</p>
+        <h1 className="text-4xl font-bold uppercase tracking-tight text-primary">Film Showtimes</h1>
+        <p className="text-muted-foreground">Select a showtime to start booking tickets</p>
       </div>
 
       {Object.keys(grouped).length === 0 ? (
         <div className="text-center py-20 text-muted-foreground bg-card rounded-lg border border-border">
-          Không tìm thấy suất chiếu nào phù hợp.
+          No matching showtimes found.
         </div>
       ) : (
         <div className="space-y-8">
@@ -80,7 +80,7 @@ export default async function ShowtimesPage({
                               }`}
                               disabled={isPast}
                             >
-                              {new Date(st.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                              {new Date(st.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
                             </Button>
                           </Link>
                         );

@@ -42,7 +42,7 @@ export default function CGVCardPage() {
   const handleTopup = async () => {
     const amount = parseInt(topupAmount.replace(/,/g, ''));
     if (!amount || amount < 50000) {
-      toast.error('Số tiền nạp tối thiểu là 50,000đ');
+      toast.error('Minimum top-up amount is 50,000 VND');
       return;
     }
 
@@ -53,13 +53,13 @@ export default function CGVCardPage() {
         paymentMethod: 'VNPAY'
       });
       if (res.success) {
-        toast.success('Nạp tiền thành công!');
+        toast.success('Top-up successful!');
         setTopupAmount('');
         fetchBalanceAndHistory();
         fetchUser(); // Refresh user context balance
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.error?.message || 'Lỗi khi nạp tiền');
+      toast.error(error.response?.data?.error?.message || 'Error processing top-up');
     } finally {
       setIsProcessing(false);
     }
@@ -69,20 +69,20 @@ export default function CGVCardPage() {
     setTopupAmount(amount.toString());
   };
 
-  if (loading) return <div className="p-8 text-center text-muted-foreground">Đang tải thông tin thẻ...</div>;
+  if (loading) return <div className="p-8 text-center text-muted-foreground">Loading card details...</div>;
 
   return (
     <div className="p-8 space-y-8">
       <div className="flex items-center gap-3">
         <CreditCard className="w-8 h-8 text-primary" />
-        <h1 className="text-3xl font-bold">Thẻ CGV Card</h1>
+        <h1 className="text-3xl font-bold">ClGV Card</h1>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <Card className="border-primary/20 bg-primary/5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-primary">
-              <Wallet className="w-5 h-5" /> Nạp Tiền (Topup)
+              <Wallet className="w-5 h-5" /> Top Up Card
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -90,7 +90,7 @@ export default function CGVCardPage() {
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl"></div>
               <div className="relative z-10 flex justify-between items-center">
                 <div>
-                  <p className="text-sm text-zinc-400 mb-1">Số dư hiện tại</p>
+                  <p className="text-sm text-zinc-400 mb-1">Current Balance</p>
                   <p className="text-3xl font-bold">
                     {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(balance)}
                   </p>
@@ -101,10 +101,10 @@ export default function CGVCardPage() {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Nhập số tiền muốn nạp (VND)</Label>
+                <Label>Enter top-up amount (VND)</Label>
                 <Input 
                   type="number" 
-                  placeholder="VD: 100000"
+                  placeholder="e.g. 100000"
                   value={topupAmount}
                   onChange={(e) => setTopupAmount(e.target.value)}
                 />
@@ -122,7 +122,7 @@ export default function CGVCardPage() {
                 onClick={handleTopup}
                 disabled={isProcessing || !topupAmount}
               >
-                {isProcessing ? 'Đang xử lý...' : 'Nạp Tiền Ngay (Mock)'}
+                {isProcessing ? 'Processing...' : 'Top Up Now (Mock)'}
               </Button>
             </div>
           </CardContent>
@@ -131,7 +131,7 @@ export default function CGVCardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <History className="w-5 h-5" /> Lịch Sử Giao Dịch
+              <History className="w-5 h-5" /> Transaction History
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -144,7 +144,7 @@ export default function CGVCardPage() {
                         {record.type === 'TOPUP' ? <ArrowUpRight className="w-4 h-4" /> : <CreditCard className="w-4 h-4" />}
                       </div>
                       <div>
-                        <p className="font-medium">{record.description || (record.type === 'TOPUP' ? 'Nạp tiền' : 'Thanh toán vé')}</p>
+                        <p className="font-medium">{record.description || (record.type === 'TOPUP' ? 'Card Top-up' : 'Ticket Purchase')}</p>
                         <p className="text-xs text-muted-foreground">
                           {record.createdAt ? format(new Date(record.createdAt), 'dd/MM/yyyy HH:mm') : ''}
                         </p>
@@ -159,7 +159,7 @@ export default function CGVCardPage() {
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                Chưa có giao dịch thẻ CGV Card.
+                No ClGV card transactions found.
               </div>
             )}
           </CardContent>

@@ -40,7 +40,7 @@ export default function AdminUsersPage() {
       const res = await api.get('/admin/users');
       setUsers(res.data?.users || res.data || []);
     } catch (error) {
-      toast.error('Lỗi khi tải danh sách người dùng');
+      toast.error('Failed to load user accounts list');
     } finally {
       setLoading(false);
     }
@@ -68,11 +68,11 @@ export default function AdminUsersPage() {
     if (!selectedUser) return;
     try {
       await api.put(`/admin/users/${selectedUser.id}/role`, { role: roleForm });
-      toast.success('Cập nhật quyền thành công');
+      toast.success('User role updated successfully');
       setIsRoleDialogOpen(false);
       fetchUsers();
     } catch (error: any) {
-      toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Lỗi hệ thống');
+      toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Server error');
     }
   };
 
@@ -86,11 +86,11 @@ export default function AdminUsersPage() {
         cgvCardBalance: Number(membershipForm.cgvCardBalance),
         isU22Verified: membershipForm.isU22Verified
       });
-      toast.success('Cập nhật thông tin thẻ/điểm thành công');
+      toast.success('Membership and card balance updated successfully');
       setIsMembershipDialogOpen(false);
       fetchUsers();
     } catch (error: any) {
-      toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Lỗi hệ thống');
+      toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Server error');
     }
   };
 
@@ -103,12 +103,12 @@ export default function AdminUsersPage() {
     if (!userToDelete) return;
     try {
       await api.delete(`/admin/users/${userToDelete.id}`);
-      toast.success('Xóa người dùng thành công');
+      toast.success('User deleted successfully');
       setIsDeleteDialogOpen(false);
       setUserToDelete(null);
       fetchUsers();
     } catch (error: any) {
-      toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Lỗi hệ thống');
+      toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Server error');
     }
   };
 
@@ -122,39 +122,39 @@ export default function AdminUsersPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold border-l-4 border-primary pl-4 flex items-center gap-2">
-          <Users className="w-8 h-8 text-primary" /> Quản lý Khách Hàng
+          <Users className="w-8 h-8 text-primary" /> Manage Users & Customers
         </h1>
       </div>
 
       <div className="flex items-center space-x-2 max-w-sm">
         <Search className="w-5 h-5 text-muted-foreground" />
         <Input 
-          placeholder="Tìm kiếm theo tên, email, sđt..." 
+          placeholder="Search by name, email, phone..." 
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
       {loading ? (
-        <div className="text-center py-8">Đang tải dữ liệu...</div>
+        <div className="text-center py-8">Loading users data...</div>
       ) : (
         <div className="rounded-md border border-border/50 bg-card/40 backdrop-blur-md overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Khách Hàng</TableHead>
-                <TableHead>Liên Hệ</TableHead>
-                <TableHead>Vai Trò (Role)</TableHead>
-                <TableHead>Hạng Thẻ</TableHead>
-                <TableHead>Tài Sản</TableHead>
-                <TableHead className="text-right">Hành Động</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Contact</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Membership Tier</TableHead>
+                <TableHead>Account Assets</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredUsers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    Không tìm thấy người dùng nào
+                    No users found
                   </TableCell>
                 </TableRow>
               ) : (
@@ -164,13 +164,13 @@ export default function AdminUsersPage() {
                       <div className="font-medium">{user.fullName}</div>
                       <div className="text-xs text-muted-foreground mt-1">
                         {user.isU22Verified ? (
-                          <span className="bg-blue-500/20 text-blue-400 px-1 py-0.5 rounded">✓ Đã xác minh U22</span>
-                        ) : 'Chưa xác minh U22'}
+                          <span className="bg-blue-500/20 text-blue-400 px-1 py-0.5 rounded">✓ Verified U22 Student</span>
+                        ) : 'Not verified U22'}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div>{user.email}</div>
-                      <div className="text-muted-foreground">{user.phone || 'Chưa cập nhật'}</div>
+                      <div className="text-muted-foreground">{user.phone || 'Not updated'}</div>
                     </TableCell>
                     <TableCell>
                       <span className={`px-2 py-1 rounded text-xs ${
@@ -191,17 +191,17 @@ export default function AdminUsersPage() {
                       </span>
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm">Điểm: <span className="text-primary font-bold">{user.points}</span></div>
-                      <div className="text-sm">Ví: <span className="text-primary font-bold">{user.cgvCardBalance?.toLocaleString('vi-VN')}đ</span></div>
+                      <div className="text-sm">Points: <span className="text-primary font-bold">{user.points}</span></div>
+                      <div className="text-sm">Wallet: <span className="text-primary font-bold">{user.cgvCardBalance?.toLocaleString('vi-VN')} ₫</span></div>
                     </TableCell>
                     <TableCell className="text-right space-x-2">
-                      <Button variant="outline" size="sm" onClick={() => handleOpenRoleDialog(user)} title="Đổi quyền">
+                      <Button variant="outline" size="sm" onClick={() => handleOpenRoleDialog(user)} title="Change Role">
                         <ShieldAlert className="w-4 h-4" />
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleOpenMembershipDialog(user)} title="Chỉnh sửa thẻ/điểm">
+                      <Button variant="outline" size="sm" onClick={() => handleOpenMembershipDialog(user)} title="Edit Card / Points">
                         <CreditCard className="w-4 h-4" />
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDelete(user)} title="Xóa người dùng">
+                      <Button variant="destructive" size="sm" onClick={() => handleDelete(user)} title="Delete User">
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </TableCell>
@@ -217,26 +217,26 @@ export default function AdminUsersPage() {
       <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Phân quyền người dùng</DialogTitle>
+            <DialogTitle>Assign User Role</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmitRole} className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>Tên người dùng: <span className="text-primary">{selectedUser?.fullName}</span></Label>
+              <Label>User Name: <span className="text-primary">{selectedUser?.fullName}</span></Label>
             </div>
             <div className="space-y-2">
-              <Label>Vai trò (Role)</Label>
+              <Label>Role</Label>
               <select 
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 value={roleForm} 
                 onChange={(e) => setRoleForm(e.target.value)}
               >
-                <option value="CUSTOMER">Khách hàng (CUSTOMER)</option>
-                <option value="SCANNER">Nhân viên soát vé (SCANNER)</option>
-                <option value="ADMIN">Quản trị viên (ADMIN)</option>
+                <option value="CUSTOMER">Customer (CUSTOMER)</option>
+                <option value="SCANNER">Ticket Usher (SCANNER)</option>
+                <option value="ADMIN">Administrator (ADMIN)</option>
               </select>
             </div>
             <div className="flex justify-end pt-4">
-              <Button type="submit">Lưu thay đổi</Button>
+              <Button type="submit">Save Changes</Button>
             </div>
           </form>
         </DialogContent>
@@ -246,15 +246,15 @@ export default function AdminUsersPage() {
       <Dialog open={isMembershipDialogOpen} onOpenChange={setIsMembershipDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Quản lý Thẻ & Điểm Thưởng</DialogTitle>
+            <DialogTitle>Manage Card & Reward Points</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmitMembership} className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>Tên người dùng: <span className="text-primary">{selectedUser?.fullName}</span></Label>
+              <Label>User Name: <span className="text-primary">{selectedUser?.fullName}</span></Label>
             </div>
             
             <div className="space-y-2">
-              <Label>Hạng thành viên (Membership Tier)</Label>
+              <Label>Membership Tier</Label>
               <select 
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 value={membershipForm.tier} 
@@ -275,12 +275,12 @@ export default function AdminUsersPage() {
                 checked={membershipForm.isU22Verified}
                 onChange={(e) => setMembershipForm({...membershipForm, isU22Verified: e.target.checked})}
               />
-              <Label htmlFor="isU22" className="cursor-pointer font-normal">Đã xác minh Học sinh/Sinh viên (U22)</Label>
+              <Label htmlFor="isU22" className="cursor-pointer font-normal">Verified Student (U22)</Label>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Điểm thưởng (Points)</Label>
+                <Label>Reward Points</Label>
                 <Input 
                   type="number" 
                   min="0"
@@ -289,7 +289,7 @@ export default function AdminUsersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Số dư CGV Card (VNĐ)</Label>
+                <Label>ClGV Card Balance (VND)</Label>
                 <Input 
                   type="number" 
                   min="0"
@@ -301,7 +301,7 @@ export default function AdminUsersPage() {
             </div>
 
             <div className="flex justify-end pt-4">
-              <Button type="submit">Lưu thông tin thẻ</Button>
+              <Button type="submit">Save Card Info</Button>
             </div>
           </form>
         </DialogContent>
@@ -309,14 +309,14 @@ export default function AdminUsersPage() {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle className="text-destructive">Xác nhận xóa tài khoản</DialogTitle>
+            <DialogTitle className="text-destructive">Confirm Account Deletion</DialogTitle>
             <DialogDescription>
-              Bạn có chắc chắn muốn xóa người dùng <strong>{userToDelete?.fullName || userToDelete?.email}</strong>? Hành động này không thể hoàn tác!
+              Are you sure you want to delete user <strong>{userToDelete?.fullName || userToDelete?.email}</strong>? This action cannot be undone!
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Hủy</Button>
-            <Button variant="destructive" onClick={confirmDelete}>Xóa</Button>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Delete User</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

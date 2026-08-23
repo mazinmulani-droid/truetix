@@ -11,19 +11,19 @@ const oswald = Oswald({ subsets: ['latin', 'vietnamese'] });
 
 const navLinks = [
   { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/admin/movies', icon: Film, label: 'Quản lý Phim' },
-  { href: '/admin/banners', icon: ImageIcon, label: 'Quản lý Banners' },
-  { href: '/admin/cinemas', icon: MapPin, label: 'Quản lý Rạp' },
-  { href: '/admin/showtimes', icon: CalendarRange, label: 'Quản lý Lịch Chiếu' },
-  { href: '/admin/users', icon: Users, label: 'Quản lý Users' },
-  { href: '/admin/settings', icon: Settings, label: 'Cấu hình' },
+  { href: '/admin/movies', icon: Film, label: 'Manage Films' },
+  { href: '/admin/banners', icon: ImageIcon, label: 'Manage Banners' },
+  { href: '/admin/cinemas', icon: MapPin, label: 'Manage Cinemas' },
+  { href: '/admin/showtimes', icon: CalendarRange, label: 'Manage Showtimes' },
+  { href: '/admin/users', icon: Users, label: 'Manage Users' },
+  { href: '/admin/settings', icon: Settings, label: 'Settings' },
 ];
 
 const secondaryLinks = [
-  { href: '/admin/cities', icon: Building2, label: 'Thành Phố' },
-  { href: '/admin/combos', icon: Popcorn, label: 'Bắp Nước' },
-  { href: '/admin/vouchers', icon: Ticket, label: 'Mã Giảm Giá' },
-  { href: '/admin/tickets/scan', icon: QrCode, label: 'Soát Vé (Scan QR)' },
+  { href: '/admin/cities', icon: Building2, label: 'Cities & Regions' },
+  { href: '/admin/combos', icon: Popcorn, label: 'Food & Drinks' },
+  { href: '/admin/vouchers', icon: Ticket, label: 'Vouchers & Offers' },
+  { href: '/admin/tickets/scan', icon: QrCode, label: 'Ticket Scanner (QR)' },
 ];
 
 export default function AdminLayout({
@@ -70,8 +70,8 @@ export default function AdminLayout({
       {/* Sidebar */}
       <aside className="w-64 bg-card/60 backdrop-blur-xl border-r border-border/50 flex flex-col hidden md:flex z-10">
         <div className="p-6 border-b border-border">
-          <h2 className="text-xl font-bold text-primary tracking-wider uppercase">Quản Trị CGV</h2>
-          <p className="text-sm text-muted-foreground mt-1">Hệ thống CMS</p>
+          <h2 className="text-xl font-bold text-primary tracking-wider uppercase">ClGV Admin</h2>
+          <p className="text-sm text-muted-foreground mt-1">Management CMS</p>
         </div>
         
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
@@ -121,7 +121,7 @@ export default function AdminLayout({
             className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-destructive rounded-md hover:bg-destructive/10 transition-colors"
           >
             <LogOut className="h-5 w-5" />
-            Đăng xuất
+            Log out
           </button>
         </div>
       </aside>

@@ -57,52 +57,52 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-3xl font-bold border-l-4 border-primary pl-4">Dashboard (Thống kê)</h1>
+      <h1 className="text-3xl font-bold border-l-4 border-primary pl-4">Dashboard & Analytics</h1>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-card/40 backdrop-blur-md border border-border/50 shadow-lg hover:bg-card/60 transition-colors">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Tổng Doanh Thu</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
             <Ticket className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">
               {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(stats.revenue)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Từ các giao dịch thành công</p>
+            <p className="text-xs text-muted-foreground mt-1">From completed bookings</p>
           </CardContent>
         </Card>
         
         <Card className="bg-card/40 backdrop-blur-md border border-border/50 shadow-lg hover:bg-card/60 transition-colors">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Phim Đang Chiếu</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Now Showing Films</CardTitle>
             <Film className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">{stats.totalMovies}</div>
-            <p className="text-xs text-muted-foreground mt-1">Trạng thái NOW_SHOWING</p>
+            <p className="text-xs text-muted-foreground mt-1">Status: NOW_SHOWING</p>
           </CardContent>
         </Card>
         
         <Card className="bg-card/40 backdrop-blur-md border border-border/50 shadow-lg hover:bg-card/60 transition-colors">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Vé Đã Bán</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Tickets Sold</CardTitle>
             <MapPin className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">{stats.totalTickets}</div>
-            <p className="text-xs text-muted-foreground mt-1">Tổng vé đã xuất</p>
+            <p className="text-xs text-muted-foreground mt-1">Total issued tickets</p>
           </CardContent>
         </Card>
         
         <Card className="bg-card/40 backdrop-blur-md border border-border/50 shadow-lg hover:bg-card/60 transition-colors">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Thành Viên</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Members</CardTitle>
             <Users className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">{stats.totalUsers}</div>
-            <p className="text-xs text-muted-foreground mt-1">Tổng User đăng ký</p>
+            <p className="text-xs text-muted-foreground mt-1">Total registered users</p>
           </CardContent>
         </Card>
       </div>
@@ -110,7 +110,7 @@ export default function AdminDashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <Card className="col-span-1 bg-card/40 backdrop-blur-md border border-border/50 shadow-lg">
           <CardHeader>
-            <CardTitle>Biểu đồ doanh thu</CardTitle>
+            <CardTitle>Revenue Timeline</CardTitle>
           </CardHeader>
           <CardContent className="h-80 w-full pt-4">
             {!isLoading && stats.timeline.length > 0 ? (
@@ -128,7 +128,7 @@ export default function AdminDashboardPage() {
               </ResponsiveContainer>
             ) : (
               <div className="h-full flex items-center justify-center text-muted-foreground">
-                {isLoading ? 'Đang tải...' : 'Chưa có dữ liệu doanh thu'}
+                {isLoading ? 'Loading...' : 'No revenue data available'}
               </div>
             )}
           </CardContent>
@@ -136,7 +136,7 @@ export default function AdminDashboardPage() {
 
         <Card className="col-span-1 bg-card/40 backdrop-blur-md border border-border/50 shadow-lg">
           <CardHeader>
-            <CardTitle>Tỷ lệ lấp đầy rạp (%)</CardTitle>
+            <CardTitle>Auditorium Occupancy Rate (%)</CardTitle>
           </CardHeader>
           <CardContent className="h-80 w-full pt-4">
             {!isLoading && stats.occupancy.length > 0 ? (
@@ -151,7 +151,7 @@ export default function AdminDashboardPage() {
               </ResponsiveContainer>
             ) : (
               <div className="h-full flex items-center justify-center text-muted-foreground">
-                {isLoading ? 'Đang tải...' : 'Chưa có dữ liệu lấp đầy'}
+                {isLoading ? 'Loading...' : 'No occupancy data available'}
               </div>
             )}
           </CardContent>
@@ -159,7 +159,7 @@ export default function AdminDashboardPage() {
         
         <Card className="col-span-2 bg-card/40 backdrop-blur-md border border-border/50 shadow-lg">
           <CardHeader>
-            <CardTitle>Giao dịch gần đây</CardTitle>
+            <CardTitle>Recent Bookings</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -168,20 +168,20 @@ export default function AdminDashboardPage() {
                   <div key={booking.id} className="flex items-center justify-between border-b border-border pb-4 last:border-0 last:pb-0">
                     <div>
                       <p className="font-medium">{booking.user?.fullName || booking.user?.email || 'Guest User'}</p>
-                      <p className="text-sm text-muted-foreground">Đặt vé phim {booking.showtime?.movie?.title}</p>
+                      <p className="text-sm text-muted-foreground">Ticket booking for {booking.showtime?.movie?.title}</p>
                     </div>
                     <div className="text-right">
                       <p className="font-bold text-primary">
                         {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(booking.totalAmount)}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(booking.createdAt).toLocaleString('vi-VN')}
+                        {new Date(booking.createdAt).toLocaleString('en-GB')}
                       </p>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="text-center text-muted-foreground py-4">{isLoading ? 'Đang tải...' : 'Chưa có giao dịch nào'}</div>
+                <div className="text-center text-muted-foreground py-4">{isLoading ? 'Loading...' : 'No recent transactions'}</div>
               )}
             </div>
           </CardContent>

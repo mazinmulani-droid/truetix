@@ -25,7 +25,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user) {
       throw new UnauthorizedException({
         code: 'UNAUTHORIZED',
-        message: 'Tài khoản không tồn tại hoặc đã bị hủy',
+        message: 'Account does not exist or has been deactivated',
       });
     }
 

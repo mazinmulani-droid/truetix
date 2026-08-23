@@ -62,7 +62,7 @@ export class TicketService {
     });
 
     if (!ticket || ticket.booking.userId !== userId) {
-      throw new NotFoundException(`Không tìm thấy vé ID: ${id}`);
+      throw new NotFoundException(`Ticket ID not found: ${id}`);
     }
 
     return ticket;
@@ -74,14 +74,14 @@ export class TicketService {
   async verifyQrTicket(scannerKey: string, qrToken: string) {
     const expectedKey = this.configService.get<string>('TURNSTILE_SECRET_KEY', 'turnstile-secret-key-2026');
     if (scannerKey !== expectedKey) {
-      throw new UnauthorizedException('Header X-Scanner-Key không hợp lệ');
+      throw new UnauthorizedException('Invalid X-Scanner-Key header');
     }
 
     const parts = qrToken.split('.');
     if (parts.length !== 3 || parts[0] !== 'TKT') {
       throw new UnprocessableEntityException({
         code: 'INVALID_HMAC_SIGNATURE',
-        message: 'Mã QR không khớp định dạng vé ClGV',
+        message: 'QR code does not match ClGV ticket format',
       });
     }
 
@@ -94,7 +94,7 @@ export class TicketService {
     if (signature !== expectedSig) {
       throw new UnprocessableEntityException({
         code: 'INVALID_HMAC_SIGNATURE',
-        message: 'Chữ ký số HMAC QR vé không hợp lệ hoặc đã bị chỉnh sửa',
+        message: 'Invalid HMAC signature or ticket data has been modified',
       });
     }
 
@@ -106,7 +106,7 @@ export class TicketService {
     if (payload.exp && nowUnix > payload.exp) {
       throw new UnprocessableEntityException({
         code: 'TICKET_EXPIRED',
-        message: 'Vé đã hết hạn sử dụng do suất chiếu đã kết thúc',
+        message: 'Ticket has expired as the showtime has ended',
       });
     }
 
@@ -123,13 +123,13 @@ export class TicketService {
     });
 
     if (!ticket) {
-      throw new NotFoundException('Vé không tồn tại trong cơ sở dữ liệu');
+      throw new NotFoundException('Ticket does not exist in database');
     }
 
     if (ticket.status === 'CHECKED_IN') {
       throw new UnprocessableEntityException({
         code: 'TICKET_ALREADY_USED',
-        message: 'Vé này đã được soát và check-in vào rạp trước đó',
+        message: 'This ticket has already been verified and checked in',
       });
     }
 

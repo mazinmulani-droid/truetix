@@ -102,7 +102,7 @@ function SeatsContent() {
         }
       } catch (error) {
         console.error(error);
-        toast.error('Không thể tải sơ đồ ghế. Vui lòng thử lại.');
+        toast.error('Unable to load seat layout. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -131,7 +131,7 @@ function SeatsContent() {
             if (data.heldByUserId !== currentUser?.id) {
               useBookingStore.setState((state) => {
                 if (state.selectedSeats.find(selected => selected.id === data.seatId)) {
-                  toast.warning(`Ghế ${data.seatId} vừa có người đặt hoặc giữ!`);
+                  toast.warning(`Seat ${data.seatId} was just selected or reserved by another user!`);
                   return { selectedSeats: state.selectedSeats.filter(selected => selected.id !== data.seatId) };
                 }
                 return state;
@@ -166,7 +166,7 @@ function SeatsContent() {
     if (selectedSeats.length === 0) return;
     
     if (!isAuthenticated) {
-      toast.error('Vui lòng đăng nhập để tiếp tục đặt vé');
+      toast.error('Please log in to continue booking tickets');
       router.push(`/login?redirect=/booking/seats?showtimeId=${showtimeId}`);
       return;
     }
@@ -183,16 +183,16 @@ function SeatsContent() {
       }
     } catch (error: any) {
       if (error.response?.status === 409) {
-        toast.error('Một số ghế bạn chọn đã bị đặt. Vui lòng chọn ghế khác.');
+        toast.error('Some of the seats you selected have just been booked. Please choose different seats.');
         // Refresh matrix
       } else {
-        toast.error('Đã có lỗi xảy ra. Vui lòng thử lại.');
+        toast.error('An error occurred. Please try again.');
       }
     }
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Đang tải sơ đồ ghế...</div>;
+    return <div className="min-h-screen flex items-center justify-center">Loading seat map...</div>;
   }
 
   const totalPrice = selectedSeats.reduce((acc, seat) => acc + seat.price, 0);
@@ -201,14 +201,14 @@ function SeatsContent() {
     <div className="min-h-screen bg-background pb-24">
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-primary">Chọn Ghế</h1>
+          <h1 className="text-3xl font-bold text-primary">Choose Seats</h1>
         </div>
 
         {/* Screen Indicator */}
         <div className="flex flex-col items-center mb-12">
           <div className="w-full max-w-2xl h-12 bg-gradient-to-b from-primary/20 to-transparent rounded-t-full border-t-4 border-primary flex items-center justify-center shadow-[0_-10px_30px_rgba(229,9,20,0.2)]">
             <span className="text-muted-foreground font-semibold uppercase tracking-widest text-sm flex items-center gap-2">
-              <Monitor className="w-4 h-4" /> Màn Hình
+              <Monitor className="w-4 h-4" /> Screen
             </span>
           </div>
         </div>
@@ -266,8 +266,8 @@ function SeatsContent() {
           <div className="flex items-center gap-2 text-sm"><div className="w-6 h-6 bg-secondary rounded-t-lg"></div> Standard</div>
           <div className="flex items-center gap-2 text-sm"><div className="w-6 h-6 bg-amber-500/20 border border-amber-500/50 rounded-t-lg"></div> VIP</div>
           <div className="flex items-center gap-2 text-sm"><div className="w-10 h-6 bg-pink-500/20 border border-pink-500/50 rounded-t-lg"></div> Couple</div>
-          <div className="flex items-center gap-2 text-sm"><div className="w-6 h-6 bg-primary rounded-t-lg"></div> Đang chọn</div>
-          <div className="flex items-center gap-2 text-sm"><div className="w-6 h-6 bg-destructive/50 rounded-t-lg opacity-50"></div> Đã bán</div>
+          <div className="flex items-center gap-2 text-sm"><div className="w-6 h-6 bg-primary rounded-t-lg"></div> Selected</div>
+          <div className="flex items-center gap-2 text-sm"><div className="w-6 h-6 bg-destructive/50 rounded-t-lg opacity-50"></div> Sold</div>
         </div>
       </div>
 
@@ -275,16 +275,16 @@ function SeatsContent() {
       <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-50 p-4">
         <div className="container mx-auto flex justify-between items-center">
           <div>
-            <p className="text-sm text-muted-foreground mb-1">Ghế đã chọn:</p>
+            <p className="text-sm text-muted-foreground mb-1">Selected seats:</p>
             <p className="font-bold text-lg min-h-[1.75rem]">
               {selectedSeats.length > 0 
                 ? selectedSeats.map(s => s.name).join(', ') 
-                : 'Chưa chọn ghế nào'}
+                : 'No seats selected yet'}
             </p>
           </div>
           <div className="flex items-center gap-6">
             <div className="text-right hidden md:block">
-              <p className="text-sm text-muted-foreground mb-1">Tạm tính:</p>
+              <p className="text-sm text-muted-foreground mb-1">Subtotal:</p>
               <p className="font-bold text-2xl text-primary">{totalPrice.toLocaleString('vi-VN')} ₫</p>
             </div>
             <Button 
@@ -293,7 +293,7 @@ function SeatsContent() {
               disabled={selectedSeats.length === 0}
               className="text-lg font-bold px-8 shadow-lg shadow-primary/30"
             >
-              Tiếp Tục <ChevronRight className="ml-2 w-5 h-5" />
+              Continue <ChevronRight className="ml-2 w-5 h-5" />
             </Button>
           </div>
         </div>
@@ -304,7 +304,7 @@ function SeatsContent() {
 
 export default function SeatsPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Đang tải...</div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
       <SeatsContent />
     </Suspense>
   );

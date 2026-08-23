@@ -10,7 +10,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let errorCode = 'INTERNAL_SERVER_ERROR';
-    let message = 'Đã có lỗi hệ thống xảy ra. Vui lòng thử lại sau.';
+    let message = 'An unexpected server error occurred. Please try again later.';
     let details: any = null;
 
     if (exception instanceof HttpException) {

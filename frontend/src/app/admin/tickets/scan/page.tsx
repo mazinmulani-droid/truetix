@@ -55,13 +55,13 @@ export default function TicketScanPage() {
       if (res.success) {
         setTicketDetails(res.data);
         if (res.data.status === 'VALID') {
-          toast.success('Vé HỢP LỆ. Chấp nhận vào rạp.');
+          toast.success('Ticket VALID. Admit customer.');
         } else {
-          toast.error('Vé KHÔNG HỢP LỆ hoặc ĐÃ SỬ DỤNG.');
+          toast.error('Ticket INVALID or ALREADY USED.');
         }
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.error?.message || 'Lỗi khi xác thực vé');
+      toast.error(error.response?.data?.error?.message || 'Error validating ticket');
       setTicketDetails({ status: 'INVALID', message: error.response?.data?.error?.message });
     } finally {
       setIsVerifying(false);
@@ -77,13 +77,13 @@ export default function TicketScanPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <QrCode className="w-8 h-8 text-primary" />
-        <h1 className="text-3xl font-bold">Soát Vé Qua Mã QR</h1>
+        <h1 className="text-3xl font-bold">Ticket Scanner (QR)</h1>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <Card>
           <CardHeader>
-            <CardTitle>Máy quét QR (Camera)</CardTitle>
+            <CardTitle>QR Scanner Camera</CardTitle>
           </CardHeader>
           <CardContent>
             <div id="qr-reader" className="w-full max-w-sm mx-auto overflow-hidden rounded-xl border-2 border-primary/20"></div>
@@ -92,19 +92,19 @@ export default function TicketScanPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Kết quả kiểm tra</CardTitle>
+            <CardTitle>Validation Result</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             {!scanResult && !isVerifying && (
               <div className="text-center py-12 text-muted-foreground">
-                Hãy đưa mã QR của khách hàng vào camera để quét.
+                Point customer&apos;s digital ticket QR code towards the camera to scan.
               </div>
             )}
 
             {isVerifying && (
               <div className="flex flex-col items-center justify-center py-12 space-y-4 text-primary">
                 <Loader2 className="w-12 h-12 animate-spin" />
-                <p className="font-medium">Đang xác thực trên hệ thống...</p>
+                <p className="font-medium">Validating ticket on server...</p>
               </div>
             )}
 
@@ -118,25 +118,25 @@ export default function TicketScanPage() {
                   )}
                   <div>
                     <h3 className={`text-2xl font-bold ${ticketDetails.status === 'VALID' ? 'text-green-500' : 'text-destructive'}`}>
-                      {ticketDetails.status === 'VALID' ? 'VÉ HỢP LỆ' : 'VÉ KHÔNG HỢP LỆ'}
+                      {ticketDetails.status === 'VALID' ? 'VALID TICKET' : 'INVALID TICKET'}
                     </h3>
-                    <p className="text-sm font-medium opacity-80">{ticketDetails.message || 'Có thể đã sử dụng hoặc giả mạo'}</p>
+                    <p className="text-sm font-medium opacity-80">{ticketDetails.message || 'Ticket already used or fraudulent'}</p>
                   </div>
                 </div>
 
                 {ticketDetails.ticket && (
                   <div className="space-y-2 text-sm mt-4 pt-4 border-t border-border/50">
-                    <p><span className="text-muted-foreground w-24 inline-block">Khách hàng:</span> <span className="font-bold">{ticketDetails.ticket.user?.fullName}</span></p>
-                    <p><span className="text-muted-foreground w-24 inline-block">Tên phim:</span> <span className="font-bold">{ticketDetails.ticket.booking?.showtime?.movie?.title}</span></p>
-                    <p><span className="text-muted-foreground w-24 inline-block">Rạp chiếu:</span> <span className="font-bold">{ticketDetails.ticket.booking?.showtime?.cinema?.name}</span></p>
-                    <p><span className="text-muted-foreground w-24 inline-block">Phòng:</span> <span className="font-bold">{ticketDetails.ticket.booking?.showtime?.hall?.name}</span></p>
-                    <p><span className="text-muted-foreground w-24 inline-block">Giờ chiếu:</span> <span className="font-bold">{new Date(ticketDetails.ticket.booking?.showtime?.startTime).toLocaleString('vi-VN')}</span></p>
-                    <p><span className="text-muted-foreground w-24 inline-block">Ghế ngồi:</span> <span className="font-bold text-lg text-primary">{ticketDetails.ticket.seatName}</span></p>
+                    <p><span className="text-muted-foreground w-28 inline-block">Customer:</span> <span className="font-bold">{ticketDetails.ticket.user?.fullName}</span></p>
+                    <p><span className="text-muted-foreground w-28 inline-block">Film:</span> <span className="font-bold">{ticketDetails.ticket.booking?.showtime?.movie?.title}</span></p>
+                    <p><span className="text-muted-foreground w-28 inline-block">Cinema:</span> <span className="font-bold">{ticketDetails.ticket.booking?.showtime?.cinema?.name}</span></p>
+                    <p><span className="text-muted-foreground w-28 inline-block">Screen:</span> <span className="font-bold">{ticketDetails.ticket.booking?.showtime?.hall?.name}</span></p>
+                    <p><span className="text-muted-foreground w-28 inline-block">Showtime:</span> <span className="font-bold">{new Date(ticketDetails.ticket.booking?.showtime?.startTime).toLocaleString('en-GB')}</span></p>
+                    <p><span className="text-muted-foreground w-28 inline-block">Seats:</span> <span className="font-bold text-lg text-primary">{ticketDetails.ticket.seatName}</span></p>
                   </div>
                 )}
 
                 <Button className="w-full mt-6" variant="outline" onClick={handleReset}>
-                  Quét vé tiếp theo
+                  Scan Next Ticket
                 </Button>
               </div>
             )}

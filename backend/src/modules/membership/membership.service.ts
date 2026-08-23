@@ -27,7 +27,7 @@ export class MembershipService {
     if (!user) {
       throw new NotFoundException({
         code: 'USER_NOT_FOUND',
-        message: 'Người dùng không tồn tại',
+        message: 'User does not exist',
       });
     }
 
@@ -75,14 +75,14 @@ export class MembershipService {
     if (!user) {
       throw new NotFoundException({
         code: 'USER_NOT_FOUND',
-        message: 'Người dùng không tồn tại',
+        message: 'User does not exist',
       });
     }
 
     if (user.points < redeemDto.pointsToRedeem) {
       throw new BadRequestException({
         code: 'INSUFFICIENT_POINTS',
-        message: `Số điểm thưởng hiện tại (${user.points} điểm) không đủ để quy đổi phần quà này`,
+        message: `Current loyalty points (${user.points} pts) are insufficient to redeem this reward`,
       });
     }
 
@@ -95,11 +95,11 @@ export class MembershipService {
     });
 
     // Tạo mã quà tặng quy đổi (Reward Code)
-    const rewardCode = `CGV-REWARD-${redeemDto.rewardType}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    const rewardCode = `CLGV-REWARD-${redeemDto.rewardType}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
     return {
       success: true,
-      message: 'Đổi điểm CGV Rewards thành công!',
+      message: 'Points redeemed successfully!',
       rewardType: redeemDto.rewardType,
       pointsRedeemed: redeemDto.pointsToRedeem,
       remainingPoints: updatedUser.points,
@@ -109,7 +109,7 @@ export class MembershipService {
 
   private getNextTierRequirement(currentTier: MembershipTier, currentPoints: number) {
     if (currentTier === MembershipTier.VVIP) {
-      return { nextTier: 'Tối đa (VVIP)', pointsNeeded: 0 };
+      return { nextTier: 'Max Tier (VVIP)', pointsNeeded: 0 };
     }
     if (currentTier === MembershipTier.VIP) {
       return { nextTier: MembershipTier.VVIP, pointsNeeded: Math.max(0, 500 - currentPoints) };

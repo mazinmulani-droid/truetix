@@ -30,7 +30,7 @@ export default function AdminCitiesPage() {
       const res = await api.get('/cities');
       if (res.success) setCities(res.data || []);
     } catch (error) {
-      toast.error('Lỗi khi tải danh sách thành phố');
+      toast.error('Failed to load cities list');
     } finally {
       setLoading(false);
     }
@@ -56,7 +56,7 @@ export default function AdminCitiesPage() {
         city.id !== formData.id
       );
       if (isDuplicate) {
-        toast.error('Thứ tự hiển thị này đã tồn tại. Vui lòng chọn số khác!');
+        toast.error('This display order is already in use. Please select a different number!');
         return;
       }
     }
@@ -70,15 +70,15 @@ export default function AdminCitiesPage() {
 
       if (isEditing) {
         await api.put(`/admin/cities/${formData.id}`, payload);
-        toast.success('Cập nhật thành phố thành công');
+        toast.success('City updated successfully');
       } else {
         await api.post('/admin/cities', payload);
-        toast.success('Thêm thành phố thành công');
+        toast.success('City added successfully');
       }
       setIsDialogOpen(false);
       fetchCities();
     } catch (error: any) {
-      toast.error(error.response?.data?.error?.message || 'Có lỗi xảy ra');
+      toast.error(error.response?.data?.error?.message || 'An error occurred');
     }
   };
 
@@ -91,25 +91,25 @@ export default function AdminCitiesPage() {
     if (!cityToDelete) return;
     try {
       await api.delete(`/admin/cities/${cityToDelete.id}`);
-      toast.success('Xóa thành phố thành công');
+      toast.success('City deleted successfully');
       setIsDeleteDialogOpen(false);
       setCityToDelete(null);
       fetchCities();
     } catch (error: any) {
-      toast.error('Có lỗi xảy ra khi xóa');
+      toast.error('Failed to delete city');
     }
   };
 
-  if (loading) return <div className="p-8 text-center">Đang tải dữ liệu...</div>;
+  if (loading) return <div className="p-8 text-center">Loading cities...</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold border-l-4 border-primary pl-4 flex items-center gap-2">
-          <Building2 className="w-8 h-8 text-primary" /> Quản lý Thành Phố
+          <Building2 className="w-8 h-8 text-primary" /> Cities & Regions
         </h1>
         <Button onClick={() => handleOpenDialog()} className="flex items-center gap-2">
-          <Plus className="w-4 h-4" /> Thêm Thành Phố
+          <Plus className="w-4 h-4" /> Add City / Region
         </Button>
       </div>
 
@@ -139,23 +139,23 @@ export default function AdminCitiesPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{isEditing ? 'Sửa Thành Phố' : 'Thêm Thành Phố'}</DialogTitle>
+            <DialogTitle>{isEditing ? 'Edit City' : 'Add City'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>Tên thành phố</Label>
-              <Input required value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="VD: TP. Hồ Chí Minh" />
+              <Label>City / Region Name</Label>
+              <Input required value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="e.g. London" />
             </div>
             <div className="space-y-2">
-              <Label>Mã Code</Label>
-              <Input required value={formData.code} onChange={(e) => setFormData({...formData, code: e.target.value})} placeholder="VD: HCM" />
+              <Label>City Code</Label>
+              <Input required value={formData.code} onChange={(e) => setFormData({...formData, code: e.target.value})} placeholder="e.g. LON" />
             </div>
             <div className="space-y-2">
-              <Label>Thứ tự hiển thị (Tùy chọn)</Label>
+              <Label>Display Order (Optional)</Label>
               <Input type="number" value={formData.displayOrder} onChange={(e) => setFormData({...formData, displayOrder: parseInt(e.target.value) || 0})} />
             </div>
             <div className="flex justify-end pt-4">
-              <Button type="submit">{isEditing ? 'Cập nhật' : 'Thêm mới'}</Button>
+              <Button type="submit">{isEditing ? 'Update' : 'Add City'}</Button>
             </div>
           </form>
         </DialogContent>
@@ -163,14 +163,14 @@ export default function AdminCitiesPage() {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle className="text-destructive">Xác nhận xóa thành phố</DialogTitle>
+            <DialogTitle className="text-destructive">Confirm City Deletion</DialogTitle>
             <DialogDescription>
-              Bạn có chắc chắn muốn xóa thành phố <strong>{cityToDelete?.name}</strong>? Hành động này không thể hoàn tác.
+              Are you sure you want to delete <strong>{cityToDelete?.name}</strong>? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Hủy</Button>
-            <Button variant="destructive" onClick={confirmDelete}>Xóa</Button>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Delete</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

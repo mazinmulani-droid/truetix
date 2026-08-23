@@ -18,11 +18,11 @@ export class CinemaService {
     if (!city) {
       throw new NotFoundException({
         code: 'CITY_NOT_FOUND',
-        message: 'Thành phố được chọn không tồn tại',
+        message: 'Selected city does not exist',
       });
     }
 
-    // Kiểm tra không cho phép trùng tên rạp chiếu trong hệ thống
+    // Check duplicate cinema name
     const existingCinema = await this.prisma.cinema.findFirst({
       where: {
         name: { equals: createCinemaDto.name.trim(), mode: 'insensitive' },
@@ -32,7 +32,7 @@ export class CinemaService {
     if (existingCinema) {
       throw new ConflictException({
         code: 'DUPLICATE_CINEMA_NAME',
-        message: 'Tên cụm rạp đã tồn tại trong hệ thống',
+        message: 'Cinema venue name already exists in the system',
       });
     }
 
@@ -47,7 +47,7 @@ export class CinemaService {
     });
   }
 
-  // Admin cập nhật thông tin cụm rạp
+  // Admin update cinema
   async updateCinema(id: string, updateCinemaDto: UpdateCinemaDto) {
     const existingCinema = await this.findOneCinema(id);
 
@@ -58,7 +58,7 @@ export class CinemaService {
       if (!city) {
         throw new NotFoundException({
           code: 'CITY_NOT_FOUND',
-          message: 'Thành phố được chọn không tồn tại',
+          message: 'Selected city does not exist',
         });
       }
     }
@@ -74,7 +74,7 @@ export class CinemaService {
       if (duplicateCinema) {
         throw new ConflictException({
           code: 'DUPLICATE_CINEMA_NAME',
-          message: 'Tên cụm rạp đã tồn tại trong hệ thống',
+          message: 'Cinema venue name already exists in the system',
         });
       }
     }
@@ -91,7 +91,7 @@ export class CinemaService {
     });
   }
 
-  // Admin xóa cụm rạp
+  // Admin delete cinema
   async deleteCinema(id: string) {
     await this.findOneCinema(id);
 
@@ -101,11 +101,11 @@ export class CinemaService {
 
     return {
       success: true,
-      message: 'Xóa cụm rạp thành công',
+      message: 'Cinema deleted successfully',
     };
   }
 
-  // Danh sách cụm rạp lọc theo thành phố
+  // Cinema list
   async findAllCinemas(cityId?: string) {
     return this.prisma.cinema.findMany({
       where: {
@@ -120,7 +120,7 @@ export class CinemaService {
     });
   }
 
-  // Chi tiết cụm rạp
+  // Cinema detail
   async findOneCinema(id: string) {
     const cinema = await this.prisma.cinema.findUnique({
       where: { id },
@@ -133,18 +133,18 @@ export class CinemaService {
     if (!cinema) {
       throw new NotFoundException({
         code: 'NOT_FOUND',
-        message: 'Cụm rạp không tồn tại',
+        message: 'Cinema venue not found',
       });
     }
 
     return cinema;
   }
 
-  // Admin tạo phòng chiếu (Hall)
+  // Admin create hall
   async createHall(createHallDto: CreateHallDto) {
     await this.findOneCinema(createHallDto.cinemaId);
 
-    // Kiểm tra không cho phép trùng tên phòng chiếu trong cùng 1 rạp
+    // Check duplicate screen name
     const existingHall = await this.prisma.hall.findFirst({
       where: {
         cinemaId: createHallDto.cinemaId,
@@ -155,7 +155,7 @@ export class CinemaService {
     if (existingHall) {
       throw new ConflictException({
         code: 'DUPLICATE_HALL_NAME',
-        message: 'Tên phòng chiếu đã tồn tại trong rạp này',
+        message: 'Screen auditorium name already exists in this cinema',
       });
     }
 
@@ -169,7 +169,7 @@ export class CinemaService {
     });
   }
 
-  // Admin xóa phòng chiếu (Hall)
+  // Admin delete hall
   async deleteHall(hallId: string) {
     const hall = await this.prisma.hall.findUnique({
       where: { id: hallId },
@@ -178,7 +178,7 @@ export class CinemaService {
     if (!hall) {
       throw new NotFoundException({
         code: 'NOT_FOUND',
-        message: 'Phòng chiếu không tồn tại',
+        message: 'Screen auditorium not found',
       });
     }
 
@@ -188,11 +188,11 @@ export class CinemaService {
 
     return {
       success: true,
-      message: 'Xóa phòng chiếu thành công',
+      message: 'Screen auditorium deleted successfully',
     };
   }
 
-  // Lấy chi tiết ma trận ghế của phòng chiếu
+  // Get seat matrix
   async getHallMatrix(hallId: string) {
     const hall = await this.prisma.hall.findUnique({
       where: { id: hallId },
@@ -202,7 +202,7 @@ export class CinemaService {
     if (!hall) {
       throw new NotFoundException({
         code: 'NOT_FOUND',
-        message: 'Phòng chiếu không tồn tại',
+        message: 'Screen auditorium not found',
       });
     }
 

@@ -19,7 +19,7 @@ export function BannerSlider({ banners }: { banners: any[] }) {
   if (!banners || banners.length === 0) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-zinc-900">
-        <h2 className="text-3xl font-bold text-primary">CGV Promotions</h2>
+        <h2 className="text-3xl font-bold text-primary">ClGV Offers</h2>
       </div>
     );
   }
@@ -47,14 +47,14 @@ export function BannerSlider({ banners }: { banners: any[] }) {
                 {banner.title}
               </h2>
               <p className="text-lg text-white/80 line-clamp-2 drop-shadow-md">
-                Khám phá thế giới điện ảnh đỉnh cao. Đặt vé ngay hôm nay để nhận nhiều ưu đãi hấp dẫn từ hệ thống rạp ClGV toàn quốc!
+                Discover the ultimate cinema experience. Book tickets today to enjoy exclusive offers across all ClGV cinemas!
               </p>
               <div>
                 <Link 
                   href={banner.linkUrl || '#'}
                   className="inline-flex items-center justify-center px-8 py-3 mt-4 text-sm font-bold uppercase tracking-widest text-white bg-primary rounded hover:bg-primary/90 transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_-5px_rgba(225,29,72,0.6)]"
                 >
-                  Đặt vé ngay
+                  Book Now
                 </Link>
               </div>
             </div>

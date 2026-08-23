@@ -20,7 +20,7 @@ export default function UserProfilePage() {
 
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold mb-8 border-l-4 border-primary pl-4">Hồ Sơ Của Tôi</h1>
+      <h1 className="text-3xl font-bold mb-8 border-l-4 border-primary pl-4">My Profile</h1>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-1">
@@ -34,17 +34,17 @@ export default function UserProfilePage() {
               </div>
               
               <div className="space-y-1 mb-8">
-                <p className="text-sm text-zinc-400 uppercase">Họ và tên</p>
+                <p className="text-sm text-zinc-400 uppercase">Full Name</p>
                 <p className="font-bold text-lg text-white">{user.fullName}</p>
               </div>
               
               <div className="flex justify-between items-end">
                 <div>
-                  <p className="text-sm text-zinc-400">Điểm tích lũy</p>
+                  <p className="text-sm text-zinc-400">Reward Points</p>
                   <p className="font-bold text-2xl text-white">{user.points || 0}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-zinc-400">Số dư thẻ</p>
+                  <p className="text-sm text-zinc-400">Card Balance</p>
                   <p className="font-bold text-lg text-white">
                     {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(user.cgvCardBalance || 0)}
                   </p>
@@ -57,11 +57,11 @@ export default function UserProfilePage() {
         <div className="md:col-span-2 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Thông tin tài khoản</CardTitle>
+              <CardTitle>Account Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-3 border-b border-border pb-4">
-                <div className="font-semibold text-muted-foreground">Họ tên</div>
+                <div className="font-semibold text-muted-foreground">Full Name</div>
                 <div className="col-span-2">{user.fullName}</div>
               </div>
               <div className="grid grid-cols-3 border-b border-border pb-4">
@@ -69,7 +69,7 @@ export default function UserProfilePage() {
                 <div className="col-span-2">{user.email}</div>
               </div>
               <div className="grid grid-cols-3 border-b border-border pb-4">
-                <div className="font-semibold text-muted-foreground">Hạng thành viên</div>
+                <div className="font-semibold text-muted-foreground">Membership Tier</div>
                 <div className="col-span-2">
                   <span className="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-bold">
                     {user.membershipTier || 'MEMBER'}
@@ -81,9 +81,9 @@ export default function UserProfilePage() {
           
           <div className="flex gap-4">
             <Button variant="outline" onClick={() => router.push('/user/tickets')}>
-              Xem vé của tôi
+              View My Tickets
             </Button>
-            <Button>Chỉnh sửa thông tin</Button>
+            <Button>Edit Profile</Button>
           </div>
         </div>
       </div>

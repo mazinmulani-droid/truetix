@@ -24,7 +24,7 @@ export class AuthService {
     if (existingUser) {
       throw new ConflictException({
         code: 'EMAIL_EXISTS',
-        message: 'Email này đã được đăng ký trong hệ thống',
+        message: 'This email is already registered in the system',
       });
     }
 
@@ -60,7 +60,7 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException({
         code: 'UNAUTHORIZED',
-        message: 'Email hoặc mật khẩu không chính xác',
+        message: 'Incorrect email or password',
       });
     }
 
@@ -68,7 +68,7 @@ export class AuthService {
     if (!isPasswordValid) {
       throw new UnauthorizedException({
         code: 'UNAUTHORIZED',
-        message: 'Email hoặc mật khẩu không chính xác',
+        message: 'Incorrect email or password',
       });
     }
 
@@ -94,7 +94,7 @@ export class AuthService {
     if (!tokenRecord || tokenRecord.expiresAt < new Date()) {
       throw new UnauthorizedException({
         code: 'INVALID_REFRESH_TOKEN',
-        message: 'Refresh token không hợp lệ hoặc đã hết hạn',
+        message: 'Refresh token is invalid or has expired',
       });
     }
 

@@ -36,12 +36,12 @@ export default function MyTicketsPage() {
   }, [isAuthenticated]);
 
   if (loading) {
-    return <div className="container mx-auto px-4 py-12 text-center">Đang tải danh sách vé...</div>;
+    return <div className="container mx-auto px-4 py-12 text-center">Loading tickets...</div>;
   }
 
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold mb-8 border-l-4 border-primary pl-4">Vé Của Tôi</h1>
+      <h1 className="text-3xl font-bold mb-8 border-l-4 border-primary pl-4">My Tickets</h1>
       
       {tickets.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -51,7 +51,7 @@ export default function MyTicketsPage() {
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-lg text-primary">{ticket.movieTitle}</span>
                   <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded">
-                    {ticket.status === 'PAID' ? 'ĐÃ THANH TOÁN' : ticket.status}
+                    {ticket.status === 'PAID' ? 'PAID' : ticket.status}
                   </span>
                 </div>
               </div>
@@ -71,7 +71,7 @@ export default function MyTicketsPage() {
                   </div>
                   <div className="pt-2 border-t border-border mt-2">
                     <div className="flex justify-between font-medium">
-                      <span className="text-muted-foreground">Ghế:</span>
+                      <span className="text-muted-foreground">Seats:</span>
                       <span className="text-primary">{ticket.seats?.join(', ')}</span>
                     </div>
                   </div>
@@ -82,7 +82,7 @@ export default function MyTicketsPage() {
                   onClick={() => setSelectedTicket(ticket)}
                   variant="outline"
                 >
-                  Xem Mã QR
+                  View QR Code
                 </Button>
               </CardContent>
             </Card>
@@ -90,8 +90,8 @@ export default function MyTicketsPage() {
         </div>
       ) : (
         <div className="text-center py-20 bg-muted/30 rounded-lg">
-          <p className="text-muted-foreground mb-4">Bạn chưa có vé nào.</p>
-          <a href="/movies" className={buttonVariants()}>Đặt vé ngay</a>
+          <p className="text-muted-foreground mb-4">You have no tickets yet.</p>
+          <a href="/movies" className={buttonVariants()}>Book Tickets Now</a>
         </div>
       )}
 
@@ -100,7 +100,7 @@ export default function MyTicketsPage() {
         <DialogContent className="sm:max-w-md flex flex-col items-center justify-center p-8">
           <DialogHeader>
             <DialogTitle className="text-center text-xl mb-4 text-primary">
-              Mã QR Soát Vé
+              Ticket QR Code
             </DialogTitle>
           </DialogHeader>
           
@@ -117,9 +117,9 @@ export default function MyTicketsPage() {
           
           <div className="mt-6 text-center space-y-1">
             <p className="font-bold text-lg">{selectedTicket?.movieTitle}</p>
-            <p className="text-sm text-muted-foreground">Ghế: {selectedTicket?.seats?.join(', ')}</p>
+            <p className="text-sm text-muted-foreground">Seats: {selectedTicket?.seats?.join(', ')}</p>
             <p className="text-xs text-destructive mt-4 font-medium uppercase tracking-wider">
-              Vui lòng đưa mã này cho nhân viên soát vé
+              Please present this QR code to the usher at the cinema
             </p>
           </div>
         </DialogContent>

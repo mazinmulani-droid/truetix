@@ -39,7 +39,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
 
   if (movie.showtimes && movie.showtimes.length > 0) {
     movie.showtimes.forEach((st: any) => {
-      const dateStr = new Date(st.startTime).toLocaleDateString('vi-VN');
+      const dateStr = new Date(st.startTime).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
       if (!showtimesByDate[dateStr]) showtimesByDate[dateStr] = [];
       showtimesByDate[dateStr].push(st);
     });
@@ -67,8 +67,8 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
                 <span className="bg-primary/20 text-primary px-3 py-1 rounded border border-primary/30">
                   {movie.ageRating}
                 </span>
-                <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> {movie.durationMinutes} phút</span>
-                <span className="flex items-center gap-1"><Calendar className="w-4 h-4" /> {new Date(movie.releaseDate).toLocaleDateString('vi-VN')}</span>
+                <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> {movie.durationMinutes} mins</span>
+                <span className="flex items-center gap-1"><Calendar className="w-4 h-4" /> {new Date(movie.releaseDate).toLocaleDateString('en-GB')}</span>
                 <span className="flex items-center gap-1"><Film className="w-4 h-4" /> {movie.genres?.join(', ')}</span>
               </div>
               <div className="pt-2">
@@ -85,22 +85,22 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
           {/* Left Column: Details & Trailer */}
           <div className="lg:col-span-2 space-y-8">
             <section>
-              <h3 className="text-2xl font-bold border-l-4 border-primary pl-4 mb-4">Nội Dung Phim</h3>
+              <h3 className="text-2xl font-bold border-l-4 border-primary pl-4 mb-4">Synopsis</h3>
               <p className="text-muted-foreground leading-relaxed text-lg">
-                {movie.description || 'Chưa có thông tin mô tả cho phim này.'}
+                {movie.description || 'No description available for this film.'}
               </p>
             </section>
 
             <section>
-              <h3 className="text-2xl font-bold border-l-4 border-primary pl-4 mb-4">Đạo Diễn & Diễn Viên</h3>
+              <h3 className="text-2xl font-bold border-l-4 border-primary pl-4 mb-4">Director & Cast</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-card p-4 rounded-lg border border-border">
-                  <p className="text-sm text-muted-foreground mb-1">Đạo diễn</p>
-                  <p className="font-bold">{movie.director || 'Đang cập nhật'}</p>
+                  <p className="text-sm text-muted-foreground mb-1">Director</p>
+                  <p className="font-bold">{movie.director || 'To be updated'}</p>
                 </div>
                 <div className="bg-card p-4 rounded-lg border border-border">
-                  <p className="text-sm text-muted-foreground mb-1">Diễn viên</p>
-                  <p className="font-bold">{movie.cast || 'Đang cập nhật'}</p>
+                  <p className="text-sm text-muted-foreground mb-1">Cast</p>
+                  <p className="font-bold">{movie.cast || 'To be updated'}</p>
                 </div>
               </div>
             </section>
@@ -125,7 +125,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
 
           {/* Right Column: Showtimes */}
           <div id="showtimes-section" className="lg:col-span-1 space-y-6">
-            <h3 className="text-2xl font-bold border-l-4 border-primary pl-4 mb-4 uppercase">Lịch Chiếu</h3>
+            <h3 className="text-2xl font-bold border-l-4 border-primary pl-4 mb-4 uppercase">Showtimes</h3>
             
             {Object.keys(showtimesByDate).length > 0 ? (
               <div className="space-y-6">
@@ -137,7 +137,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
                     {(() => {
                       const byCinema: Record<string, any[]> = {};
                       showtimes.forEach(st => {
-                        const cName = st.cinema?.name || 'Rạp Khác';
+                        const cName = st.cinema?.name || 'Other Cinema';
                         if (!byCinema[cName]) byCinema[cName] = [];
                         byCinema[cName].push(st);
                       });
@@ -163,7 +163,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
                                     }`}
                                     disabled={isPast}
                                   >
-                                    {new Date(st.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                    {new Date(st.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
                                   </Button>
                                 </Link>
                               );
@@ -177,7 +177,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
               </div>
             ) : (
               <div className="bg-card border border-border rounded-lg p-8 text-center">
-                <p className="text-muted-foreground">Hiện chưa có lịch chiếu cho phim này.</p>
+                <p className="text-muted-foreground">No showtimes currently available for this film.</p>
               </div>
             )}
           </div>

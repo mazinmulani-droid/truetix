@@ -28,7 +28,7 @@ export default function AdminCombosPage() {
       const res = await api.get('/combos');
       if (res.success) setCombos(res.data || []);
     } catch (error) {
-      toast.error('Lỗi khi tải danh sách bắp nước');
+      toast.error('Failed to load food & drink combos');
     } finally {
       setLoading(false);
     }
@@ -63,39 +63,39 @@ export default function AdminCombosPage() {
 
       if (isEditing) {
         await api.put(`/admin/combos/${formData.id}`, payload);
-        toast.success('Cập nhật combo thành công');
+        toast.success('Combo updated successfully');
       } else {
         await api.post('/admin/combos', payload);
-        toast.success('Thêm combo thành công');
+        toast.success('Combo added successfully');
       }
       setIsDialogOpen(false);
       fetchCombos();
     } catch (error: any) {
-      toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Lỗi hệ thống');
+      toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Server error');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa combo này?')) return;
+    if (!confirm('Are you sure you want to delete this combo?')) return;
     try {
       await api.delete(`/admin/combos/${id}`);
-      toast.success('Xóa combo thành công');
+      toast.success('Combo deleted successfully');
       fetchCombos();
     } catch (error: any) {
-      toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Lỗi hệ thống');
+      toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Server error');
     }
   };
 
-  if (loading) return <div className="p-8 text-center">Đang tải dữ liệu...</div>;
+  if (loading) return <div className="p-8 text-center">Loading combos...</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold border-l-4 border-primary pl-4 flex items-center gap-2">
-          <Popcorn className="w-8 h-8 text-primary" /> Quản lý Bắp Nước
+          <Popcorn className="w-8 h-8 text-primary" /> Manage Food & Drinks
         </h1>
         <Button onClick={() => handleOpenDialog()} className="flex items-center gap-2">
-          <Plus className="w-4 h-4" /> Thêm Combo
+          <Plus className="w-4 h-4" /> Add Combo
         </Button>
       </div>
 
@@ -135,27 +135,27 @@ export default function AdminCombosPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{isEditing ? 'Sửa Combo' : 'Thêm Combo'}</DialogTitle>
+            <DialogTitle>{isEditing ? 'Edit Combo' : 'Add Combo'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>Tên Combo</Label>
-              <Input required value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} placeholder="VD: CGV Combo 1" />
+              <Label>Combo Title</Label>
+              <Input required value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} placeholder="e.g. ClGV Combo 1" />
             </div>
             <div className="space-y-2">
-              <Label>Mô tả</Label>
-              <Textarea value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} placeholder="VD: 1 Bắp Ngọt Large + 2 Nước Ngọt Large" />
+              <Label>Description</Label>
+              <Textarea value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} placeholder="e.g. 1 Large Sweet Popcorn + 2 Large Soft Drinks" />
             </div>
             <div className="space-y-2">
-              <Label>Hình ảnh (URL)</Label>
+              <Label>Image URL</Label>
               <Input value={formData.imageUrl} onChange={(e) => setFormData({...formData, imageUrl: e.target.value})} placeholder="https://..." />
             </div>
             <div className="space-y-2">
-              <Label>Giá tiền (VND)</Label>
+              <Label>Price (VND)</Label>
               <Input type="number" required value={formData.price} onChange={(e) => setFormData({...formData, price: parseInt(e.target.value) || 0})} />
             </div>
             <div className="flex justify-end pt-4">
-              <Button type="submit">{isEditing ? 'Cập nhật' : 'Thêm mới'}</Button>
+              <Button type="submit">{isEditing ? 'Update' : 'Add Combo'}</Button>
             </div>
           </form>
         </DialogContent>

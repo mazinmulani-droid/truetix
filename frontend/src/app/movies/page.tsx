@@ -27,7 +27,7 @@ export default async function MoviesPage() {
       <div className="flex items-center justify-center mb-10">
         <div className="flex items-center gap-4">
           <div className="w-1.5 h-8 bg-primary rounded-full shadow-[0_0_10px_rgba(225,29,72,0.8)]" />
-          <h1 className="text-4xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 py-2 leading-relaxed">Phim Tại ClGV</h1>
+          <h1 className="text-4xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 py-2 leading-relaxed">Films at ClGV</h1>
           <div className="w-1.5 h-8 bg-primary rounded-full shadow-[0_0_10px_rgba(225,29,72,0.8)]" />
         </div>
       </div>
@@ -35,8 +35,8 @@ export default async function MoviesPage() {
       <Tabs defaultValue="now-showing" className="w-full max-w-5xl mx-auto">
         <div className="flex justify-center mb-8">
           <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="now-showing" className="text-lg">Đang Chiếu</TabsTrigger>
-            <TabsTrigger value="coming-soon" className="text-lg">Sắp Chiếu</TabsTrigger>
+            <TabsTrigger value="now-showing" className="text-lg">Now Showing</TabsTrigger>
+            <TabsTrigger value="coming-soon" className="text-lg">Coming Soon</TabsTrigger>
           </TabsList>
         </div>
         
@@ -61,7 +61,7 @@ export default async function MoviesPage() {
                             <Play className="w-5 h-5 text-white ml-1" />
                           </div>
                           <div className="px-4 py-2 bg-primary text-white text-sm font-bold uppercase rounded-full hover:bg-primary/90 flex items-center gap-2 shadow-[0_0_15px_rgba(225,29,72,0.5)] transition-transform hover:scale-105">
-                            <Ticket className="w-4 h-4" /> Mua Vé
+                            <Ticket className="w-4 h-4" /> Book Tickets
                           </div>
                         </div>
                       </div>
@@ -70,7 +70,7 @@ export default async function MoviesPage() {
                           {movie.title}
                         </h3>
                         <p className="text-xs text-muted-foreground line-clamp-1">
-                          {movie.genres?.join(', ') || 'Hành động, Tâm lý'} • {movie.duration} phút
+                          {movie.genres?.join(', ') || 'Action, Drama'} • {movie.duration || movie.durationMinutes || 120} mins
                         </p>
                       </div>
                     </CardContent>
@@ -80,7 +80,7 @@ export default async function MoviesPage() {
             </div>
           ) : (
             <div className="text-center py-20 text-muted-foreground">
-              Không có phim nào đang chiếu.
+              No films currently showing.
             </div>
           )}
         </TabsContent>
@@ -109,7 +109,7 @@ export default async function MoviesPage() {
                           {movie.title}
                         </h3>
                         <p className="text-xs text-blue-400/80 font-medium">
-                          Khởi chiếu: {new Date(movie.releaseDate).toLocaleDateString('vi-VN')}
+                          Release date: {new Date(movie.releaseDate).toLocaleDateString('en-GB')}
                         </p>
                       </div>
                     </CardContent>
@@ -119,7 +119,7 @@ export default async function MoviesPage() {
             </div>
           ) : (
             <div className="text-center py-20 text-muted-foreground">
-              Chưa có thông tin phim sắp chiếu.
+              No upcoming films information available.
             </div>
           )}
         </TabsContent>

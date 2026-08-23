@@ -42,11 +42,11 @@ export default function RegisterPage() {
       if (res.success) {
         const { user, accessToken, refreshToken } = res.data;
         setAuth(user, accessToken, refreshToken);
-        toast.success('Đăng ký thành công! Đang chuyển hướng...');
+        toast.success('Registration successful! Redirecting...');
         router.push('/');
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.error?.message || 'Đăng ký thất bại. Vui lòng thử lại.');
+      toast.error(error.response?.data?.error?.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -56,18 +56,18 @@ export default function RegisterPage() {
     <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Đăng ký thành viên</CardTitle>
+          <CardTitle className="text-2xl font-bold">Register Account</CardTitle>
           <CardDescription>
-            Điền thông tin dưới đây để tạo tài khoản CGV mới
+            Fill in the details below to create a new ClGV account
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleRegister}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="fullName">Họ và tên</Label>
+              <Label htmlFor="fullName">Full Name</Label>
               <Input
                 id="fullName"
-                placeholder="Nguyễn Văn A"
+                placeholder="John Smith"
                 required
                 value={formData.fullName}
                 onChange={handleChange}
@@ -78,25 +78,25 @@ export default function RegisterPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="m@example.com"
+                placeholder="john@example.co.uk"
                 required
                 value={formData.email}
                 onChange={handleChange}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Số điện thoại</Label>
+              <Label htmlFor="phone">Phone Number</Label>
               <Input
                 id="phone"
                 type="tel"
-                placeholder="0901234567"
+                placeholder="07123456789"
                 required
                 value={formData.phone}
                 onChange={handleChange}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Mật khẩu</Label>
+              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -108,12 +108,12 @@ export default function RegisterPage() {
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Đang xử lý...' : 'Đăng ký'}
+              {loading ? 'Processing...' : 'Register'}
             </Button>
             <div className="text-sm text-center text-muted-foreground">
-              Đã có tài khoản?{' '}
+              Already have an account?{' '}
               <Link href="/login" className="text-primary hover:underline">
-                Đăng nhập
+                Log In
               </Link>
             </div>
           </CardFooter>

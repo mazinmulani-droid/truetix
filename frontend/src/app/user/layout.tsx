@@ -7,10 +7,10 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useEffect, useState } from 'react';
 
 const navItems = [
-  { name: 'Hồ sơ', href: '/user', icon: User },
-  { name: 'Vé của tôi', href: '/user/tickets', icon: Ticket },
-  { name: 'CGV Card', href: '/user/cgv-card', icon: CreditCard },
-  { name: 'Thành viên & Điểm', href: '/user/membership', icon: Award },
+  { name: 'Profile', href: '/user', icon: User },
+  { name: 'My Tickets', href: '/user/tickets', icon: Ticket },
+  { name: 'ClGV Card', href: '/user/cgv-card', icon: CreditCard },
+  { name: 'Membership & Rewards', href: '/user/membership', icon: Award },
 ];
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {

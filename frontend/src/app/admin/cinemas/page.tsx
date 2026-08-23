@@ -55,7 +55,7 @@ export default function AdminCinemasPage() {
       }
     } catch (error) {
       console.error('Failed to fetch cinemas', error);
-      toast.error('Lỗi khi tải danh sách rạp');
+      toast.error('Failed to load cinemas list');
     } finally {
       setLoading(false);
     }
@@ -88,7 +88,7 @@ export default function AdminCinemasPage() {
       };
       const res = await api.post('/cinemas', payload);
       if (res.success) {
-        toast.success('Thêm rạp thành công');
+        toast.success('Cinema added successfully');
         setIsAddOpen(false);
         setFormData({
           cityId: cities.length > 0 ? (cities[0] as any).id : '',
@@ -101,18 +101,18 @@ export default function AdminCinemasPage() {
       } else {
         if (res.error?.code === 'DUPLICATE_CINEMA_NAME') {
           setIsAddOpen(false);
-          toast.error('Lỗi: Tên rạp đã tồn tại trong hệ thống!');
+          toast.error('Error: Cinema name already exists in the system!');
         } else {
-          toast.error(res.error?.message || res.message || 'Có lỗi xảy ra');
+          toast.error(res.error?.message || res.message || 'An error occurred');
         }
       }
     } catch (error: any) {
       console.error('Failed to add cinema', error);
       if (error.response?.data?.error?.code === 'DUPLICATE_CINEMA_NAME') {
         setIsAddOpen(false);
-        toast.error('Lỗi: Tên rạp đã tồn tại trong hệ thống!');
+        toast.error('Error: Cinema name already exists in the system!');
       } else {
-        toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Lỗi hệ thống');
+        toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Server error');
       }
     }
   };
@@ -128,7 +128,7 @@ export default function AdminCinemasPage() {
       };
       const res = await api.post('/halls', payload);
       if (res.success) {
-        toast.success('Thêm phòng chiếu thành công');
+        toast.success('Screen auditorium added successfully');
         fetchCinemas();
         // Update selected cinema data immediately
         setSelectedCinema((prev: any) => ({
@@ -137,46 +137,44 @@ export default function AdminCinemasPage() {
         }));
       } else {
         if (res.error?.code === 'DUPLICATE_HALL_NAME') {
-          toast.error('Lỗi: Tên phòng chiếu đã tồn tại trong rạp này!');
+          toast.error('Error: Screen name already exists for this cinema!');
         } else {
-          toast.error(res.error?.message || res.message || 'Có lỗi xảy ra');
+          toast.error(res.error?.message || res.message || 'An error occurred');
         }
       }
     } catch (error: any) {
       console.error('Failed to add hall', error);
       if (error.response?.data?.error?.code === 'DUPLICATE_HALL_NAME') {
-        toast.error('Lỗi: Tên phòng chiếu đã tồn tại trong rạp này!');
+        toast.error('Error: Screen name already exists for this cinema!');
       } else {
-        toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Lỗi hệ thống');
+        toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Server error');
       }
     }
   };
 
   const notifyMissingApi = () => {
-    toast.info('Tính năng đang chờ Backend cung cấp API', {
-      description: 'API Sửa và Xóa rạp chưa được định nghĩa trong API-CONTRACT.'
-    });
+    toast.info('Feature awaiting backend API integration');
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold border-l-4 border-primary pl-4">Quản Lý Rạp</h1>
+        <h1 className="text-3xl font-bold border-l-4 border-primary pl-4">Manage Cinemas</h1>
         
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger render={<Button className="gap-2" />}>
-            <Plus className="h-4 w-4" /> Thêm rạp mới
+            <Plus className="h-4 w-4" /> Add New Cinema
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>Thêm rạp mới</DialogTitle>
+              <DialogTitle>Add New Cinema</DialogTitle>
               <DialogDescription>
-                Tạo một cụm rạp mới và gán vào thành phố tương ứng.
+                Create a new cinema venue and assign it to a city or region.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
-                <Label>Thành phố</Label>
+                <Label>City / Region</Label>
                 <select 
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                   value={formData.cityId}
@@ -188,25 +186,25 @@ export default function AdminCinemasPage() {
                 </select>
               </div>
               <div className="space-y-2">
-                <Label>Tên rạp</Label>
-                <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="VD: CGV Vincom..." />
+                <Label>Cinema Name</Label>
+                <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. ClGV Leicester Square..." />
               </div>
               <div className="space-y-2">
-                <Label>Địa chỉ</Label>
-                <Input value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="Số 123 Đường..." />
+                <Label>Address</Label>
+                <Input value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="e.g. 10 High Street..." />
               </div>
               <div className="space-y-2">
                 <Label>Hotline</Label>
                 <Input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="1900 6017" />
               </div>
               <div className="space-y-2">
-                <Label>Tiện ích (cách nhau bởi dấu phẩy)</Label>
-                <Input value={formData.amenities} onChange={e => setFormData({...formData, amenities: e.target.value})} placeholder="Parking, IMAX..." />
+                <Label>Amenities (comma separated)</Label>
+                <Input value={formData.amenities} onChange={e => setFormData({...formData, amenities: e.target.value})} placeholder="Parking, IMAX, Bar..." />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddOpen(false)}>Hủy</Button>
-              <Button onClick={handleAddCinema}>Lưu rạp</Button>
+              <Button variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
+              <Button onClick={handleAddCinema}>Save Cinema</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -216,19 +214,19 @@ export default function AdminCinemasPage() {
       <Dialog open={isHallsOpen} onOpenChange={setIsHallsOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Quản lý Phòng Chiếu - {selectedCinema?.name}</DialogTitle>
+            <DialogTitle>Manage Screens & Auditoriums - {selectedCinema?.name}</DialogTitle>
             <DialogDescription>
-              Thêm phòng chiếu mới và cấu hình sơ đồ ghế.
+              Add new screens and configure seat matrix.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-6">
             <div className="flex gap-4 items-end bg-muted/50 p-4 rounded-lg border border-border">
               <div className="flex-1 space-y-2">
-                <Label>Tên phòng</Label>
-                <Input value={hallData.name} onChange={e => setHallData({...hallData, name: e.target.value})} placeholder="VD: Hall 1" />
+                <Label>Screen Name</Label>
+                <Input value={hallData.name} onChange={e => setHallData({...hallData, name: e.target.value})} placeholder="e.g. Screen 1" />
               </div>
               <div className="flex-1 space-y-2">
-                <Label>Định dạng</Label>
+                <Label>Screen Format</Label>
                 <select 
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                   value={hallData.screenType}
@@ -239,14 +237,14 @@ export default function AdminCinemasPage() {
                   <option value="FOUR_DX">4DX</option>
                   <option value="SCREEN_X">ScreenX</option>
                   <option value="GOLD_CLASS">Gold Class</option>
-                  <option value="LAMOUR_BED">L'Amour Bed</option>
+                  <option value="LAMOUR_BED">L&apos;Amour Bed</option>
                 </select>
               </div>
-              <Button onClick={handleAddHall}>Thêm phòng</Button>
+              <Button onClick={handleAddHall}>Add Screen</Button>
             </div>
             
             <div>
-              <h4 className="font-bold mb-3 border-b border-border pb-2">Danh sách phòng chiếu</h4>
+              <h4 className="font-bold mb-3 border-b border-border pb-2">Screen Auditoriums List</h4>
               {selectedCinema?.halls && selectedCinema.halls.length > 0 ? (
                 <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
                   {selectedCinema.halls.map((hall: any) => (
@@ -257,14 +255,14 @@ export default function AdminCinemasPage() {
                       </div>
                       <Link href={`/admin/halls/${hall.id}/matrix`}>
                         <Button size="sm" variant="outline" className="gap-2 border-primary/50 text-primary">
-                          <MonitorPlay className="w-4 h-4" /> Sơ đồ ghế
+                          <MonitorPlay className="w-4 h-4" /> Seat Matrix
                         </Button>
                       </Link>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-muted-foreground text-sm text-center py-4">Rạp chưa có phòng chiếu nào.</p>
+                <p className="text-muted-foreground text-sm text-center py-4">No screens configured for this cinema.</p>
               )}
             </div>
           </div>
@@ -275,19 +273,19 @@ export default function AdminCinemasPage() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead className="w-[80px] text-center">STT</TableHead>
-              <TableHead>Tên rạp</TableHead>
-              <TableHead>Thành phố</TableHead>
-              <TableHead>Địa chỉ</TableHead>
+              <TableHead className="w-[80px] text-center">#</TableHead>
+              <TableHead>Cinema Name</TableHead>
+              <TableHead>City / Region</TableHead>
+              <TableHead>Address</TableHead>
               <TableHead>Hotline</TableHead>
-              <TableHead className="text-right">Thao tác</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
-                  Đang tải dữ liệu...
+                  Loading cinemas...
                 </TableCell>
               </TableRow>
             ) : cinemas.length > 0 ? (
@@ -303,7 +301,7 @@ export default function AdminCinemasPage() {
                       variant="ghost" 
                       size="icon" 
                       className="h-8 w-8 text-primary" 
-                      title="Quản lý phòng chiếu"
+                      title="Manage screen auditoriums"
                       onClick={() => {
                         setSelectedCinema(cinema);
                         setIsHallsOpen(true);
@@ -323,7 +321,7 @@ export default function AdminCinemasPage() {
             ) : (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
-                  Không có dữ liệu
+                  No cinema data available
                 </TableCell>
               </TableRow>
             )}

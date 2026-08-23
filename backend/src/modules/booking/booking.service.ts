@@ -29,19 +29,19 @@ export class BookingService {
     const seatIds = dto.seatIds || [];
 
     if (!showtimeId || seatIds.length === 0) {
-      throw new BadRequestException('Vui lòng cung cấp showtimeId và danh sách seatIds');
+      throw new BadRequestException('Please provide showtimeId and list of seatIds');
     }
 
     const showtime = await this.prisma.showtime.findUnique({ where: { id: showtimeId } });
     if (!showtime) {
-      throw new NotFoundException(`Không tìm thấy suất chiếu ID: ${showtimeId}`);
+      throw new NotFoundException(`Showtime ID not found: ${showtimeId}`);
     }
 
     if (new Date(showtime.startTime) < new Date()) {
-      throw new BadRequestException('Suất chiếu này đã bắt đầu hoặc đã kết thúc, không thể đặt vé nữa.');
+      throw new BadRequestException('This showtime has already started or ended. Booking is unavailable.');
     }
 
-    // Sửa Bug 6: Kiểm tra trạng thái ghế thực tế từ Database PostgreSQL trước khi giữ
+    // Verify seat status from PostgreSQL database before holding
     const existingSeats = (await this.prisma.showtimeSeat.findMany({
       where: {
         showtimeId,
@@ -53,13 +53,13 @@ export class BookingService {
       if (seat.status === 'SOLD') {
         throw new ConflictException({
           code: 'SEAT_ALREADY_SOLD',
-          message: `Ghế ${seat.seatId} đã được mua thành công trước đó, không thể chọn lại`,
+          message: `Seat ${seat.seatId} has already been sold. Please select another seat.`,
         });
       }
       if (seat.status === 'BLOCKED') {
         throw new ConflictException({
           code: 'SEAT_BLOCKED',
-          message: `Ghế ${seat.seatId} hiện đang bị tạm khóa`,
+          message: `Seat ${seat.seatId} is currently blocked`,
         });
       }
     }
@@ -69,13 +69,13 @@ export class BookingService {
     for (const seatId of seatIds) {
       const acquired = await this.redisService.acquireSeatLock(showtimeId, seatId, userId, 600);
       if (!acquired) {
-        // Rollback lại các ghế đã lỡ lock trong vòng lặp này
+        // Rollback already acquired locks
         for (const locked of lockedSeats) {
           await this.redisService.releaseSeatLock(showtimeId, locked);
         }
         throw new ConflictException({
           code: 'SEAT_ALREADY_HELD',
-          message: `Ghế ${seatId} hiện đang được giữ bởi người dùng khác`,
+          message: `Seat ${seatId} is currently reserved by another customer`,
           details: [{ field: 'seatId', issue: `Lock key lock:seat:${showtimeId}:${seatId} exists in Redis` }],
         });
       }
@@ -85,7 +85,7 @@ export class BookingService {
     const expiresAt = new Date(Date.now() + 600 * 1000).toISOString();
     const reservationId = `res_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
 
-    // Broadcast sự kiện tới room Socket.io
+    // Broadcast event to Socket.io room
     lockedSeats.forEach((seatId) => {
       this.websocketGateway.broadcastSeatState(showtimeId, seatId, 'HOLDING', userId, expiresAt);
     });
@@ -100,7 +100,7 @@ export class BookingService {
   }
 
   /**
-   * Hủy giữ ghế tạm thời (Yêu cầu 5: Xóa lock trên Redis và broadcast Socket.io)
+   * Release temporarily held seats
    */
   async releaseSeats(userId: string, dto: HoldSeatDto) {
     const { showtimeId, seatIds = [] } = dto;
@@ -114,26 +114,26 @@ export class BookingService {
   }
 
   /**
-   * Checkout thanh toán vé & bắp nước (Pessimistic Lock Tier 2 & Transaction)
+   * Checkout ticket and F&B order
    */
   async checkout(userId: string, dto: CheckoutBookingDto) {
     const { showtimeId, seatIds, paymentMethod, comboIds, voucherCode, pointsToUse = 0 } = dto;
 
     return this.prisma.$transaction(async (tx) => {
-      // 1. Kiểm tra suất chiếu
+      // 1. Verify showtime
       const showtime = await tx.showtime.findUnique({
         where: { id: showtimeId },
         include: { movie: true, cinema: true, hall: true },
       });
       if (!showtime) {
-        throw new NotFoundException('Suất chiếu không tồn tại');
+        throw new NotFoundException('Showtime does not exist');
       }
 
       if (new Date(showtime.startTime) < new Date()) {
-        throw new BadRequestException('Suất chiếu này đã bắt đầu hoặc đã kết thúc, không thể thanh toán.');
+        throw new BadRequestException('This showtime has already started or ended. Cannot complete checkout.');
       }
 
-      // 2. Lock hàng ghế PostgreSQL bằng SELECT FOR UPDATE
+      // 2. Lock seats in PostgreSQL
       const seats = await tx.showtimeSeat.findMany({
         where: {
           showtimeId,
@@ -142,23 +142,23 @@ export class BookingService {
       });
 
       if (seats.length !== seatIds.length) {
-        throw new NotFoundException('Một số ghế được chọn không tồn tại trong suất chiếu');
+        throw new NotFoundException('Some selected seats do not exist in this showtime');
       }
 
       for (const seat of seats) {
         if (seat.status === 'SOLD') {
-          throw new ConflictException(`Ghế ${seat.seatId} đã được bán cho khách hàng khác`);
+          throw new ConflictException(`Seat ${seat.seatId} has been purchased by another customer`);
         }
       }
 
-      // 3. Tính tiền vé theo loại ghế
+      // 3. Calculate tickets total
       let ticketTotal = 0;
       seats.forEach((seat) => {
         const price = Math.round(showtime.basePrice * (seat.priceModifier || 1.0));
         ticketTotal += price;
       });
 
-      // 4. Tính tiền F&B Combos
+      // 4. Calculate F&B Combos total
       let comboTotal = 0;
       const comboRecordsToInsert: { comboId: string; quantity: number; price: number }[] = [];
 
@@ -180,7 +180,7 @@ export class BookingService {
       let discountAmount = 0;
       let appliedVoucherId: string | undefined = undefined;
 
-      // 5. Áp dụng Voucher giảm giá
+      // 5. Apply discount voucher
       if (voucherCode) {
         const voucher = await tx.voucher.findUnique({ where: { code: voucherCode.toUpperCase() } });
         if (voucher && voucher.status === 'ACTIVE' && new Date() <= voucher.expiresAt) {
@@ -199,32 +199,32 @@ export class BookingService {
         }
       }
 
-      // 6. Áp dụng Điểm thưởng CGV Rewards (1 điểm = 1.000 VNĐ)
+      // 6. Apply loyalty reward points
       const user = await tx.user.findUnique({ where: { id: userId } });
-      if (!user) throw new NotFoundException('Người dùng không tồn tại');
+      if (!user) throw new NotFoundException('User does not exist');
 
       let pointsUsed = 0;
       if (pointsToUse > 0) {
         if (user.points < pointsToUse) {
-          throw new BadRequestException('Số điểm CGV Rewards không đủ');
+          throw new BadRequestException('Insufficient ClGV Rewards points');
         }
         const pointDiscount = pointsToUse * 1000;
         discountAmount += pointDiscount;
         pointsUsed = pointsToUse;
       }
 
-      // Đảm bảo số tiền sau giảm giá không nhỏ hơn 0
+      // Ensure total after discount >= 0
       const finalAmount = Math.max(0, grandTotal - discountAmount);
 
-      // 7. Xử lý thanh toán (Hỗ trợ CGV_CARD, VNPAY và VIETQR)
+      // 7. Payment method processing (CGV_CARD, VNPAY, VIETQR)
       let bookingStatus: 'PENDING_PAYMENT' | 'PAID' = 'PENDING_PAYMENT';
       let paymentUrl: string | undefined = undefined;
 
       if (paymentMethod === 'CGV_CARD') {
         if (user.cgvCardBalance < finalAmount) {
-          throw new BadRequestException('Số dư thẻ CGV Card không đủ để thanh toán');
+          throw new BadRequestException('Insufficient ClGV Card wallet balance');
         }
-        // Trừ tiền thẻ CGV Card
+        // Deduct from ClGV Card wallet
         await tx.user.update({
           where: { id: userId },
           data: {
@@ -237,7 +237,7 @@ export class BookingService {
             userId,
             amount: finalAmount,
             type: 'SPEND',
-            description: `Thanh toán vé xem phim suất chiếu ${showtime.id}`,
+            description: `Payment for film tickets showtime ${showtime.id}`,
           },
         });
         bookingStatus = 'PAID';

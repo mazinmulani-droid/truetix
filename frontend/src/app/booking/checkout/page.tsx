@@ -148,14 +148,14 @@ export default function CheckoutPage() {
           setBookingId(bookingId);
         } else {
           // CGV Card deducts balance immediately
-          toast.success('Thanh toán thành công bằng ví CGV!');
+          toast.success('Payment successful with ClGV Card wallet!');
           resetBooking();
           router.push(`/booking/success?bookingId=${bookingId}`);
         }
       }
     } catch (error: any) {
       console.error(error);
-      toast.error(error.response?.data?.error?.message || 'Có lỗi xảy ra khi tạo đơn hàng.');
+      toast.error(error.response?.data?.error?.message || 'An error occurred while creating your order.');
       setIsProcessing(false);
     }
   };
@@ -177,7 +177,7 @@ export default function CheckoutPage() {
             }}>
               <ChevronLeft className="w-6 h-6" />
             </Button>
-            <h1 className="text-3xl font-bold text-primary">Thanh Toán</h1>
+            <h1 className="text-3xl font-bold text-primary">Checkout & Payment</h1>
           </div>
           <Button variant="destructive" className="border-destructive text-white hover:bg-destructive/90" onClick={() => {
             setExitAction(() => () => {
@@ -186,7 +186,7 @@ export default function CheckoutPage() {
             });
             setShowExitPrompt(true);
           }}>
-            Hủy Đặt Vé
+            Cancel Booking
           </Button>
         </div>
 
@@ -196,7 +196,7 @@ export default function CheckoutPage() {
           <div className="lg:col-span-2 space-y-6">
             <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle>Phương thức thanh toán</CardTitle>
+                <CardTitle>Payment Method</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div 
@@ -208,8 +208,8 @@ export default function CheckoutPage() {
                       <img src="https://vnpay.vn/wp-content/uploads/2020/07/Logo-VNPAYQR-update.png" alt="VNPAY" className="h-6 object-contain" />
                     </div>
                     <div>
-                      <h3 className="font-bold">Thanh toán qua VNPAY-QR</h3>
-                      <p className="text-sm text-muted-foreground">Mở ứng dụng ngân hàng để quét mã</p>
+                      <h3 className="font-bold">Pay via VNPAY-QR</h3>
+                      <p className="text-sm text-muted-foreground">Scan QR code using banking or mobile apps</p>
                     </div>
                   </div>
                   <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'VNPAY' ? 'border-primary' : 'border-muted'}`}>
@@ -226,8 +226,8 @@ export default function CheckoutPage() {
                       <Wallet className="w-6 h-6" />
                     </div>
                     <div>
-                      <h3 className="font-bold">Ví CGV Card</h3>
-                      <p className="text-sm text-muted-foreground">Số dư: <span className="font-bold text-white">{(user?.cgvCardBalance || 0).toLocaleString('vi-VN')} ₫</span></p>
+                      <h3 className="font-bold">ClGV Card Wallet</h3>
+                      <p className="text-sm text-muted-foreground">Available balance: <span className="font-bold text-white">{(user?.cgvCardBalance || 0).toLocaleString('vi-VN')} ₫</span></p>
                     </div>
                   </div>
                   <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'CGV_CARD' ? 'border-primary' : 'border-muted'}`}>
@@ -244,8 +244,8 @@ export default function CheckoutPage() {
                       <QrCode className="w-6 h-6 text-primary" />
                     </div>
                     <div>
-                      <h3 className="font-bold">Thanh toán qua VietQR</h3>
-                      <p className="text-sm text-muted-foreground">Quét mã bằng ứng dụng ngân hàng</p>
+                      <h3 className="font-bold">Pay via VietQR</h3>
+                      <p className="text-sm text-muted-foreground">Scan QR code using your banking app</p>
                     </div>
                   </div>
                   <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'VIETQR' ? 'border-primary' : 'border-muted'}`}>
@@ -255,7 +255,7 @@ export default function CheckoutPage() {
 
                 {paymentMethod === 'CGV_CARD' && (user?.cgvCardBalance || 0) < getTotalAmount() && (
                   <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 p-3 rounded-lg">
-                    <AlertCircle className="w-4 h-4" /> Số dư ví không đủ để thanh toán.
+                    <AlertCircle className="w-4 h-4" /> Insufficient wallet balance for this purchase.
                   </div>
                 )}
               </CardContent>
@@ -264,7 +264,7 @@ export default function CheckoutPage() {
             {paymentQr && (
               <Card className="bg-card border-border animate-in fade-in zoom-in duration-300">
                 <CardContent className="p-8 flex flex-col items-center justify-center space-y-6">
-                  <h3 className="text-xl font-bold text-center">Quét mã QR để thanh toán</h3>
+                  <h3 className="text-xl font-bold text-center">Scan QR Code to complete payment</h3>
                   <div className="bg-white p-4 rounded-xl">
                     {paymentMethod === 'VIETQR' ? (
                       <img src={paymentQr} alt="VietQR" className="w-[200px] h-[200px] object-contain" />
@@ -282,7 +282,7 @@ export default function CheckoutPage() {
                     <p className="font-bold text-primary text-2xl">{getTotalAmount().toLocaleString('vi-VN')} ₫</p>
                     <div className="text-sm text-muted-foreground flex items-center justify-center gap-2">
                       <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                      Đang chờ thanh toán...
+                      Awaiting payment confirmation...
                     </div>
                   </div>
                   {paymentMethod === 'VIETQR' && (
@@ -293,7 +293,7 @@ export default function CheckoutPage() {
                         router.push(`/booking/success?bookingId=${bookingId}`);
                       }}
                     >
-                      Tôi đã hoàn tất thanh toán
+                      I have completed the payment
                     </Button>
                   )}
                 </CardContent>
@@ -305,15 +305,15 @@ export default function CheckoutPage() {
           <div className="lg:col-span-1">
             <Card className="bg-card border-border sticky top-24">
               <CardHeader className="bg-muted/50 border-b border-border">
-                <CardTitle className="uppercase text-lg">Tóm tắt đơn hàng</CardTitle>
+                <CardTitle className="uppercase text-lg">Order Summary</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="p-6 space-y-4">
                   {/* Seats */}
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="font-bold text-white">Vé xem phim ({selectedSeats.length})</p>
-                      <p className="text-sm text-muted-foreground">Ghế: {selectedSeats.map(s => s.name).join(', ')}</p>
+                      <p className="font-bold text-white">Cinema Tickets ({selectedSeats.length})</p>
+                      <p className="text-sm text-muted-foreground">Seats: {selectedSeats.map(s => s.name).join(', ')}</p>
                     </div>
                     <p className="font-bold">{seatsTotal.toLocaleString('vi-VN')} ₫</p>
                   </div>
@@ -321,7 +321,7 @@ export default function CheckoutPage() {
                   {/* Combos */}
                   {combos.length > 0 && (
                     <div className="pt-4 border-t border-border border-dashed">
-                      <p className="font-bold text-white mb-2">Bắp nước</p>
+                      <p className="font-bold text-white mb-2">Food & Drinks</p>
                       <div className="space-y-2">
                         {combos.map(combo => (
                           <div key={combo.comboId} className="flex justify-between text-sm">
@@ -337,7 +337,7 @@ export default function CheckoutPage() {
                   {appliedVoucher && (
                     <div className="pt-4 border-t border-border border-dashed flex justify-between items-center text-primary">
                       <span className="font-bold flex items-center gap-2">
-                        <Ticket className="w-4 h-4" /> Mã giảm giá
+                        <Ticket className="w-4 h-4" /> Discount Voucher
                       </span>
                       <span className="font-bold">-{appliedVoucher.discountAmount.toLocaleString('vi-VN')} ₫</span>
                     </div>
@@ -346,7 +346,7 @@ export default function CheckoutPage() {
 
                 {/* Total */}
                 <div className="p-6 bg-primary/10 border-t border-primary/20 flex justify-between items-center">
-                  <span className="font-bold text-lg">Tổng cộng</span>
+                  <span className="font-bold text-lg">Total</span>
                   <span className="font-bold text-3xl text-primary">{getTotalAmount().toLocaleString('vi-VN')} ₫</span>
                 </div>
 
@@ -356,10 +356,10 @@ export default function CheckoutPage() {
                     onClick={handleCheckout}
                     disabled={isProcessing || paymentQr !== null || (paymentMethod === 'CGV_CARD' && (user?.cgvCardBalance || 0) < getTotalAmount())}
                   >
-                    {isProcessing ? 'Đang xử lý...' : 'Xác Nhận Thanh Toán'}
+                    {isProcessing ? 'Processing...' : 'Confirm & Pay'}
                   </Button>
                   <p className="text-center text-xs text-muted-foreground mt-4">
-                    Bằng việc bấm xác nhận, bạn đồng ý với Điều khoản và Điều kiện của CGV.
+                    By clicking confirm, you agree to ClGV Terms and Conditions.
                   </p>
                 </div>
               </CardContent>
@@ -372,13 +372,13 @@ export default function CheckoutPage() {
       <AlertDialog open={showExitPrompt} onOpenChange={setShowExitPrompt}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hủy thanh toán và thoát?</AlertDialogTitle>
+            <AlertDialogTitle>Cancel checkout and exit?</AlertDialogTitle>
             <AlertDialogDescription>
-              Bạn có chắc chắn muốn thoát khỏi trang thanh toán? Chỗ ngồi bạn đã chọn sẽ bị hủy giữ và đơn hàng sẽ bị hủy.
+              Are you sure you want to exit the checkout page? Your reserved seats will be released and this order will be cancelled.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Ở lại trang</AlertDialogCancel>
+            <AlertDialogCancel>Stay on page</AlertDialogCancel>
             <AlertDialogAction 
               className="bg-destructive hover:bg-destructive/90 text-white"
               onClick={async () => {
@@ -400,7 +400,7 @@ export default function CheckoutPage() {
                 if (exitAction) exitAction();
               }}
             >
-              Đồng ý thoát
+              Confirm & Exit
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

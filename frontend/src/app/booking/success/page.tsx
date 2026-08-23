@@ -26,8 +26,8 @@ function BookingSuccessContent() {
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/30 mb-4">
               <CheckCircle className="w-10 h-10 text-green-500" />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">Thanh toán thành công!</h1>
-            <p className="text-muted-foreground">Mã đơn hàng: <span className="font-bold text-white">{bookingId}</span></p>
+            <h1 className="text-3xl font-bold text-white mb-2">Booking Confirmed!</h1>
+            <p className="text-muted-foreground">Order Reference: <span className="font-bold text-white">{bookingId}</span></p>
           </div>
 
           {/* Ticket Info */}
@@ -43,15 +43,15 @@ function BookingSuccessContent() {
                   fgColor={"#000000"}
                   level={"M"}
                 />
-                <p className="text-black text-xs font-bold mt-4 tracking-widest text-center">MÃ VÉ ĐIỆN TỬ</p>
+                <p className="text-black text-xs font-bold mt-4 tracking-widest text-center">E-TICKET QR</p>
               </div>
 
               {/* Details */}
               <div className="flex-1 space-y-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-primary uppercase mb-1">Mai (2024)</h2>
+                  <h2 className="text-2xl font-bold text-primary uppercase mb-1">ClGV Cinema Experience</h2>
                   <p className="text-sm font-medium bg-primary/20 text-primary inline-block px-2 py-0.5 rounded border border-primary/30">
-                    2D - T18
+                    2D - Standard
                   </p>
                 </div>
 
@@ -59,13 +59,13 @@ function BookingSuccessContent() {
                   <div className="flex items-center gap-3">
                     <MapPin className="w-5 h-5 text-white" />
                     <div>
-                      <p className="font-bold text-white">CGV Vincom Đồng Khởi</p>
-                      <p>Hall 3 (IMAX)</p>
+                      <p className="font-bold text-white">ClGV Cinemas</p>
+                      <p>Screen 1</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <Calendar className="w-5 h-5 text-white" />
-                    <p className="font-bold text-white">Thứ Sáu, 15/08/2026</p>
+                    <p className="font-bold text-white">Friday, 15/08/2026</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <Clock className="w-5 h-5 text-white" />
@@ -73,13 +73,13 @@ function BookingSuccessContent() {
                   </div>
                   <div className="flex items-center gap-3">
                     <Ticket className="w-5 h-5 text-white" />
-                    <p>Ghế: <span className="font-bold text-white text-base">H12, H13</span> (VIP)</p>
+                    <p>Seats: <span className="font-bold text-white text-base">Reserved</span></p>
                   </div>
                 </div>
 
                 <div className="pt-4 border-t border-border/50 border-dashed flex justify-between items-center">
-                  <span className="text-muted-foreground">Tổng tiền:</span>
-                  <span className="text-xl font-bold text-white">280.000đ</span>
+                  <span className="text-muted-foreground">Status:</span>
+                  <span className="text-xl font-bold text-green-400">Paid & Confirmed</span>
                 </div>
               </div>
             </div>
@@ -88,20 +88,20 @@ function BookingSuccessContent() {
           {/* Actions */}
           <div className="bg-muted/30 p-6 flex flex-col sm:flex-row gap-4 justify-center">
             <Button variant="outline" className="gap-2 border-primary/50 text-primary hover:bg-primary hover:text-white">
-              <Download className="w-4 h-4" /> Tải vé PDF
+              <Download className="w-4 h-4" /> Download PDF Ticket
             </Button>
             <Button variant="outline" className="gap-2">
-              <Share2 className="w-4 h-4" /> Chia sẻ
+              <Share2 className="w-4 h-4" /> Share
             </Button>
             <Link href="/">
-              <Button className="w-full">Về Trang Chủ</Button>
+              <Button className="w-full">Return to Home</Button>
             </Link>
           </div>
         </div>
         
         {/* Helper Note */}
         <p className="text-center text-xs text-muted-foreground mt-6 max-w-lg">
-          Vui lòng đưa mã QR này cho nhân viên soát vé tại rạp. Vé điện tử cũng đã được gửi vào email và lưu trong mục "Lịch sử giao dịch" của bạn.
+          Please present this QR code to cinema staff upon arrival. An electronic copy has also been sent to your email and saved in your &ldquo;My Tickets&rdquo; section.
         </p>
       </div>
     </div>

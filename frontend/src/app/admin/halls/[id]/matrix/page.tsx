@@ -38,7 +38,7 @@ export default function HallMatrixBuilderPage({ params }: { params: Promise<{ id
         }
       } catch (error) {
         console.error('Failed to fetch matrix', error);
-        toast.error('Lỗi khi tải sơ đồ');
+        toast.error('Failed to load seating matrix');
       } finally {
         setLoading(false);
       }
@@ -66,7 +66,7 @@ export default function HallMatrixBuilderPage({ params }: { params: Promise<{ id
 
   const handleResize = () => {
     generateGrid(rows, cols);
-    toast.success('Đã tạo lưới sơ đồ mới');
+    toast.success('Generated new seat grid layout');
   };
 
   const toggleSeatType = (rIndex: number, cIndex: number) => {
@@ -95,11 +95,11 @@ export default function HallMatrixBuilderPage({ params }: { params: Promise<{ id
       
       const res = await api.put(`/halls/${hallId}/matrix`, payload);
       if (res.success) {
-        toast.success('Lưu cấu hình sơ đồ thành công');
+        toast.success('Seat layout saved successfully');
       }
     } catch (error) {
       console.error('Save failed', error);
-      toast.error('Có lỗi xảy ra khi lưu sơ đồ');
+      toast.error('Error saving seat matrix configuration');
     }
   };
 
@@ -113,7 +113,7 @@ export default function HallMatrixBuilderPage({ params }: { params: Promise<{ id
     }
   };
 
-  if (loading) return <div className="p-10 text-center">Đang tải cấu hình...</div>;
+  if (loading) return <div className="p-10 text-center">Loading seat configuration...</div>;
 
   return (
     <div className="space-y-6 pb-20">
@@ -121,7 +121,7 @@ export default function HallMatrixBuilderPage({ params }: { params: Promise<{ id
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <LayoutGrid className="text-primary w-6 h-6" />
-            Cấu hình sơ đồ ghế
+            Configure Seat Layout Matrix
           </h1>
           <p className="text-muted-foreground mt-1">
             {hallData?.cinemaName} - <span className="font-bold text-white">{hallData?.name}</span> ({hallData?.screenType})
@@ -130,11 +130,11 @@ export default function HallMatrixBuilderPage({ params }: { params: Promise<{ id
         <div className="flex items-center gap-4">
           <Link href="/admin/cinemas">
             <Button variant="outline" className="gap-2">
-              <ChevronLeft className="w-4 h-4" /> Quay lại
+              <ChevronLeft className="w-4 h-4" /> Go Back
             </Button>
           </Link>
           <Button onClick={saveMatrix} className="gap-2">
-            <Save className="w-4 h-4" /> Lưu cấu hình
+            <Save className="w-4 h-4" /> Save Layout
           </Button>
         </div>
       </div>
@@ -142,29 +142,29 @@ export default function HallMatrixBuilderPage({ params }: { params: Promise<{ id
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {/* Toolbar sidebar */}
         <div className="bg-card p-6 rounded-lg border border-border space-y-6 shadow-md h-fit">
-          <h3 className="font-bold text-lg border-b border-border pb-2">Kích thước ma trận</h3>
+          <h3 className="font-bold text-lg border-b border-border pb-2">Matrix Dimensions</h3>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Số hàng ngang (Rows)</Label>
+              <Label>Number of Rows</Label>
               <Input type="number" value={rows} onChange={e => setRows(Number(e.target.value))} min={1} max={26} />
             </div>
             <div className="space-y-2">
-              <Label>Số cột dọc (Cols)</Label>
+              <Label>Number of Columns</Label>
               <Input type="number" value={cols} onChange={e => setCols(Number(e.target.value))} min={1} max={50} />
             </div>
-            <Button variant="secondary" className="w-full" onClick={handleResize}>Tạo lại lưới</Button>
+            <Button variant="secondary" className="w-full" onClick={handleResize}>Regenerate Grid</Button>
           </div>
 
           <div className="pt-6 mt-6 border-t border-border">
-            <h3 className="font-bold text-lg mb-4">Chú thích</h3>
+            <h3 className="font-bold text-lg mb-4">Legend</h3>
             <div className="space-y-3">
-              <div className="flex items-center gap-3"><div className="w-6 h-6 rounded bg-blue-500/80"></div> <span className="text-sm">Ghế Thường (STANDARD)</span></div>
-              <div className="flex items-center gap-3"><div className="w-6 h-6 rounded bg-red-500/80"></div> <span className="text-sm">Ghế VIP</span></div>
-              <div className="flex items-center gap-3"><div className="w-6 h-6 rounded bg-pink-500/80"></div> <span className="text-sm">Ghế Đôi (COUPLE)</span></div>
-              <div className="flex items-center gap-3"><div className="w-6 h-6 rounded border border-dashed border-border"></div> <span className="text-sm">Lối đi / Trống (EMPTY)</span></div>
+              <div className="flex items-center gap-3"><div className="w-6 h-6 rounded bg-blue-500/80"></div> <span className="text-sm">Standard Seat</span></div>
+              <div className="flex items-center gap-3"><div className="w-6 h-6 rounded bg-red-500/80"></div> <span className="text-sm">VIP Seat</span></div>
+              <div className="flex items-center gap-3"><div className="w-6 h-6 rounded bg-pink-500/80"></div> <span className="text-sm">Couple Seat</span></div>
+              <div className="flex items-center gap-3"><div className="w-6 h-6 rounded border border-dashed border-border"></div> <span className="text-sm">Aisle / Empty Space</span></div>
             </div>
             <p className="text-xs text-muted-foreground mt-4 italic">
-              * Click vào từng ô trên sơ đồ để thay đổi loại ghế.
+              * Click on any seat in the grid to cycle its seat type.
             </p>
           </div>
         </div>
@@ -174,7 +174,7 @@ export default function HallMatrixBuilderPage({ params }: { params: Promise<{ id
           
           <div className="w-full max-w-4xl mx-auto mb-12">
             <div className="h-8 bg-gradient-to-b from-primary/30 to-transparent border-t-4 border-primary rounded-t-[50%] flex items-center justify-center shadow-[0_0_15px_rgba(var(--primary),0.3)]">
-              <span className="text-muted-foreground text-sm font-bold tracking-[0.5em] uppercase">Màn Hình</span>
+              <span className="text-muted-foreground text-sm font-bold tracking-[0.5em] uppercase">Screen</span>
             </div>
           </div>
 
@@ -189,7 +189,7 @@ export default function HallMatrixBuilderPage({ params }: { params: Promise<{ id
                     key={cIndex}
                     onClick={() => toggleSeatType(rIndex, cIndex)}
                     className={`w-8 h-8 md:w-10 md:h-10 rounded-t-lg rounded-b-sm flex items-center justify-center text-[10px] md:text-xs font-bold transition-all ${getSeatColor(cell.type)}`}
-                    title={`Ghế ${cell.id} - ${cell.type}`}
+                    title={`Seat ${cell.id} - ${cell.type}`}
                   >
                     {cell.type !== 'EMPTY' ? cIndex + 1 : ''}
                   </button>

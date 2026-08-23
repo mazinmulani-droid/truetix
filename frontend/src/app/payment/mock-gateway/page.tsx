@@ -23,8 +23,8 @@ function MockGatewayContent() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
         <h2 className="text-2xl font-bold text-destructive">Invalid Request</h2>
-        <p className="text-muted-foreground">Thiếu thông tin thanh toán (orderId, amount).</p>
-        <Button onClick={() => router.push('/')}>Về trang chủ</Button>
+        <p className="text-muted-foreground">Missing payment information (orderId, amount).</p>
+        <Button onClick={() => router.push('/')}>Return to Home</Button>
       </div>
     );
   }
@@ -44,15 +44,15 @@ function MockGatewayContent() {
       );
       
       if (success) {
-        toast.success('Thanh toán thành công!');
+        toast.success('Payment successful!');
         router.push(`/booking/success?bookingId=${orderId}`);
       } else {
-        toast.error('Thanh toán đã bị hủy.');
+        toast.error('Payment was cancelled.');
         router.push('/booking/showtimes'); // Go back to booking flow
       }
     } catch (error) {
       console.error(error);
-      toast.error('Có lỗi xảy ra khi gọi callback thanh toán.');
+      toast.error('An error occurred during payment processing.');
       setIsProcessing(false);
     }
   };
@@ -61,16 +61,16 @@ function MockGatewayContent() {
     <div className="max-w-md mx-auto space-y-6">
       <div className="text-center space-y-2">
         <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">VNPAY SANDBOX</h1>
-        <p className="text-sm text-muted-foreground">Môi trường giả lập thanh toán (Mock Gateway)</p>
+        <p className="text-sm text-muted-foreground">Payment Simulator (Mock Gateway)</p>
       </div>
       
       <Card className="border-border">
         <CardHeader className="bg-muted/50 border-b">
           <CardTitle className="text-lg flex items-center justify-between">
-            <span>Thông tin đơn hàng</span>
+            <span>Order Details</span>
             <span className="text-primary font-bold">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(amount))}</span>
           </CardTitle>
-          <CardDescription>Mã đơn: {orderId}</CardDescription>
+          <CardDescription>Order ID: {orderId}</CardDescription>
         </CardHeader>
         
         <CardContent className="p-6 space-y-8">
@@ -85,7 +85,7 @@ function MockGatewayContent() {
               />
             </div>
             <p className="text-sm text-muted-foreground text-center">
-              Quét mã QR bằng ứng dụng ngân hàng hoặc ví VNPAY.
+              Scan the QR code using your mobile banking or e-wallet app.
             </p>
           </div>
           
@@ -96,7 +96,7 @@ function MockGatewayContent() {
               onClick={() => handleSimulatePayment(false)}
               disabled={isProcessing}
             >
-              Hủy thanh toán
+              Cancel Payment
             </Button>
             <Button 
               className="w-full bg-blue-600 hover:bg-blue-700 text-white"
@@ -104,9 +104,9 @@ function MockGatewayContent() {
               disabled={isProcessing}
             >
               {isProcessing ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Đang xử lý</>
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</>
               ) : (
-                <><ShieldCheck className="mr-2 h-4 w-4" /> Xác nhận đã quét</>
+                <><ShieldCheck className="mr-2 h-4 w-4" /> Simulate Success</>
               )}
             </Button>
           </div>
@@ -120,7 +120,7 @@ export default function MockPaymentGatewayPage() {
   return (
     <div className="min-h-screen bg-background py-12 flex items-center justify-center">
       <div className="container mx-auto px-4">
-        <Suspense fallback={<div className="text-center">Đang tải cổng thanh toán...</div>}>
+        <Suspense fallback={<div className="text-center">Loading payment gateway...</div>}>
           <MockGatewayContent />
         </Suspense>
       </div>

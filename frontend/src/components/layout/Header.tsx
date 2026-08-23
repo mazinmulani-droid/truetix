@@ -28,19 +28,19 @@ export const Header = () => {
 
         <nav className="flex items-center gap-6 text-sm font-medium">
           <Link href="/movies" className="transition-colors hover:text-primary">
-            Phim
+            Films
           </Link>
           <Link
             href="/cinemas"
             className="transition-colors hover:text-primary"
           >
-            Rạp CGV
+            Cinemas
           </Link>
           <Link
             href="/promotions"
             className="transition-colors hover:text-primary"
           >
-            Khuyến Mãi
+            Offers
           </Link>
         </nav>
 
@@ -61,28 +61,28 @@ export const Header = () => {
                 </div>
                 {user.role === 'ADMIN' && (
                   <DropdownMenuItem onClick={() => router.push('/admin')} className="cursor-pointer">
-                    Trang Quản Trị
+                    Admin Dashboard
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem onClick={() => router.push('/user')} className="cursor-pointer">
-                  Hồ sơ của tôi
+                  My Profile
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => router.push('/user/tickets')} className="cursor-pointer">
-                  Vé của tôi
+                  My Tickets
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => logout()} className="cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Đăng xuất</span>
+                  <span>Log out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
             <>
               <Link href="/login" className={buttonVariants({ variant: 'ghost' })}>
-                Đăng nhập
+                Log in
               </Link>
               <Link href="/register" className={buttonVariants()}>
-                Đăng ký
+                Register
               </Link>
             </>
           )}
