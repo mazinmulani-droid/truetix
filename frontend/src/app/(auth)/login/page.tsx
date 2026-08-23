@@ -104,63 +104,17 @@ function LoginFormContent() {
     }
   };
 
-  const handleQuickDemo = (type: 'ADMIN' | 'CUSTOMER') => {
-    if (type === 'ADMIN') {
-      executeLogin({
-        id: 'usr_admin_001',
-        email: 'admin@clgv.vn',
-        fullName: 'TrueTix Administrator',
-        role: 'ADMIN',
-        membershipTier: 'VVIP',
-        points: 1000,
-        cgvCardBalance: 10000000,
-      });
-    } else {
-      executeLogin({
-        id: 'usr_cust_001',
-        email: 'customer@clgv.vn',
-        fullName: 'Alex Customer',
-        role: 'CUSTOMER',
-        membershipTier: 'VIP',
-        points: 350,
-        cgvCardBalance: 1500000,
-      });
-    }
-  };
-
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] p-4">
       <Card className="w-full max-w-md border-border/60 bg-card/90 backdrop-blur-xl">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">Log In</CardTitle>
           <CardDescription>
-            Enter your credentials or choose a quick demo role
+            Enter your email and password to access your TrueTix account
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
-            {/* Quick Demo Buttons for Instant Testing */}
-            <div className="grid grid-cols-2 gap-2 p-1 bg-muted/40 rounded-lg border border-border/50">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-xs font-bold text-primary hover:bg-primary/20"
-                onClick={() => handleQuickDemo('ADMIN')}
-              >
-                ⚡ 1-Click Admin
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-xs font-bold text-foreground hover:bg-white/10"
-                onClick={() => handleQuickDemo('CUSTOMER')}
-              >
-                ⚡ 1-Click Customer
-              </Button>
-            </div>
-
             <Button 
               type="button" 
               variant="outline" 
@@ -191,7 +145,7 @@ function LoginFormContent() {
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@clgv.vn or customer@clgv.vn"
+                placeholder="customer@clgv.vn"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -211,7 +165,7 @@ function LoginFormContent() {
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Processing...' : 'Log In'}
+              {loading ? 'Logging in...' : 'Log In'}
             </Button>
             <div className="text-sm text-center text-muted-foreground">
               Don&apos;t have an account?{' '}
