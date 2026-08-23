@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { CheckCircle, Download, Share2, MapPin, Calendar, Clock, Ticket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { QRCodeSVG } from 'qrcode.react';
 
-export default function BookingSuccessPage() {
+function BookingSuccessContent() {
   const searchParams = useSearchParams();
   const bookingId = searchParams.get('bookingId') || 'BKG_MOCK_12345';
   
