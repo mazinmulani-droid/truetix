@@ -24,9 +24,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import { toast } from 'sonner';
+import { useMovieStore } from '@/store/useMovieStore';
 
 export default function AdminMoviesPage() {
-  const [movies, setMovies] = useState([]);
+  const storeMovies = useMovieStore((state) => state.movies);
+  const addStoreMovie = useMovieStore((state) => state.addMovie);
+  const updateStoreMovie = useMovieStore((state) => state.updateMovie);
+  const deleteStoreMovie = useMovieStore((state) => state.deleteMovie);
+  const [movies, setMovies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Modals state
@@ -58,61 +63,22 @@ export default function AdminMoviesPage() {
   const fetchMovies = async () => {
     try {
       const res = await api.get('/movies?limit=100');
-      if (res.success) {
-        setMovies(Array.isArray(res.data) ? res.data : []);
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        setMovies(res.data);
+        return;
       }
     } catch (error) {
-      console.error('Failed to fetch movies', error);
-      // Fallback sample movies for standalone demo mode
-      setMovies([
-        {
-          id: 'mov_1',
-          title: 'Avatar: The Way of Water',
-          titleOriginal: 'Avatar: The Way of Water',
-          director: 'James Cameron',
-          cast: 'Sam Worthington, Zoe Saldana',
-          genres: ['Action', 'Sci-Fi', 'Adventure'],
-          durationMinutes: 192,
-          releaseDate: '2026-06-15',
-          status: 'NOW_SHOWING',
-          posterUrl: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop',
-          description: 'Jake Sully lives with his newfound family formed on the extrasolar moon Pandora.'
-        },
-        {
-          id: 'mov_2',
-          title: 'Oppenheimer',
-          titleOriginal: 'Oppenheimer',
-          director: 'Christopher Nolan',
-          cast: 'Cillian Murphy, Emily Blunt, Robert Downey Jr.',
-          genres: ['Biography', 'Drama', 'History'],
-          durationMinutes: 180,
-          releaseDate: '2026-07-20',
-          status: 'NOW_SHOWING',
-          posterUrl: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=600&auto=format&fit=crop',
-          description: 'The story of American scientist J. Robert Oppenheimer and his role in the development of the atomic bomb.'
-        },
-        {
-          id: 'mov_3',
-          title: 'Dune: Part Two',
-          titleOriginal: 'Dune: Part Two',
-          director: 'Denis Villeneuve',
-          cast: 'Timothée Chalamet, Zendaya, Rebecca Ferguson',
-          genres: ['Action', 'Adventure', 'Drama'],
-          durationMinutes: 166,
-          releaseDate: '2026-09-10',
-          status: 'COMING_SOON',
-          posterUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop',
-          description: 'Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.'
-        }
-      ] as any);
-    } finally {
-      setLoading(false);
+      console.warn('Backend offline, reading from persistent store.');
     }
+    
+    const persistent = useMovieStore.getState().movies;
+    setMovies(persistent);
+    setLoading(false);
   };
 
   useEffect(() => {
     fetchMovies();
-  }, []);
+  }, [storeMovies]);
 
   const resetForm = () => {
     setFormData({
@@ -199,8 +165,9 @@ export default function AdminMoviesPage() {
       console.warn('Backend API offline, persisting movie to local state.');
     }
 
-    // Fallback: update local state immediately
-    setMovies((prev: any) => [newMovie, ...prev]);
+    // Persist immediately in store and local state
+    addStoreMovie(newMovie);
+    setMovies((prev: any) => [newMovie, ...prev.filter(m => m.id !== newMovie.id)]);
     toast.success('Film added successfully!');
     setIsAddOpen(false);
     resetForm();
@@ -229,6 +196,7 @@ export default function AdminMoviesPage() {
       };
       const res = await api.put(`/admin/movies/${selectedMovie.id}`, payload);
       if (res.success) {
+        updateStoreMovie(selectedMovie.id, updatedMovie);
         toast.success('Film updated successfully');
         setIsEditOpen(false);
         resetForm();
@@ -236,10 +204,11 @@ export default function AdminMoviesPage() {
         return;
       }
     } catch (error: any) {
-      console.warn('Backend API offline, updating movie in local state.');
+      console.warn('Backend API offline, updating movie in persistent store.');
     }
 
-    // Fallback: update local state
+    // Persist in store
+    updateStoreMovie(selectedMovie.id, updatedMovie);
     setMovies((prev: any) => prev.map((m: any) => m.id === selectedMovie.id ? updatedMovie : m));
     toast.success('Film updated successfully!');
     setIsEditOpen(false);
@@ -251,6 +220,7 @@ export default function AdminMoviesPage() {
     try {
       const res = await api.delete(`/admin/movies/${selectedMovie.id}`);
       if (res.success) {
+        deleteStoreMovie(selectedMovie.id);
         toast.success('Film deleted successfully');
         setIsDeleteOpen(false);
         setSelectedMovie(null);
@@ -258,10 +228,11 @@ export default function AdminMoviesPage() {
         return;
       }
     } catch (error: any) {
-      console.warn('Backend API offline, deleting movie from local state.');
+      console.warn('Backend API offline, deleting movie from persistent store.');
     }
 
-    // Fallback: filter from local state
+    // Persist in store
+    deleteStoreMovie(selectedMovie.id);
     setMovies((prev: any) => prev.filter((m: any) => m.id !== selectedMovie.id));
     toast.success('Film deleted successfully!');
     setIsDeleteOpen(false);
