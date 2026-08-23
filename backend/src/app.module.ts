@@ -20,6 +20,8 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { UsersModule } from './modules/users/users.module';
 import { UploadModule } from './modules/upload/upload.module';
 
+import { AppController } from './app.controller';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -45,5 +47,6 @@ import { UploadModule } from './modules/upload/upload.module';
     TicketModule,
     AnalyticsModule,
   ],
+  controllers: [AppController],
 })
 export class AppModule {}

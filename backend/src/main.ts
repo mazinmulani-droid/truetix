@@ -13,8 +13,10 @@ async function bootstrap() {
   // Phục vụ các tập tin ảnh được upload tĩnh tại /uploads
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 
-  // Set Global API Prefix
-  app.setGlobalPrefix('api/v1');
+  // Set Global API Prefix (except root /)
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['/'],
+  });
 
   // CORS Policy
   app.enableCors({
@@ -40,8 +42,8 @@ async function bootstrap() {
 
   // Swagger Documentation Setup
   const config = new DocumentBuilder()
-    .setTitle('ClGV Film Ticket Platform API Docs')
-    .setDescription('Tài liệu API chính thức cho hệ thống đặt vé xem phim ClGV')
+    .setTitle('TrueTix Film Ticket Platform API Docs')
+    .setDescription('Official API Documentation for TrueTix Film Ticket Booking Platform')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
@@ -50,7 +52,7 @@ async function bootstrap() {
 
   const port = process.env.PORT || 4000;
   await app.listen(port, '0.0.0.0');
-  console.log(`🚀 ClGV Backend Server running on http://0.0.0.0:${port}`);
+  console.log(`🚀 TrueTix Backend Server running on http://0.0.0.0:${port}`);
   console.log(`📚 Swagger API Docs available at http://0.0.0.0:${port}/api/docs`);
 }
 
