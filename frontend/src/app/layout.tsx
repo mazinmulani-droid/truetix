@@ -20,6 +20,8 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 });
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'ClGV - Film Ticket Platform',
   description: 'Trải nghiệm điện ảnh đỉnh cao phong cách CGV',
