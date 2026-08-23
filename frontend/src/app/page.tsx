@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { buttonVariants } from '@/components/ui/button';
 import { BannerSlider } from '@/components/home/banner-slider';
 import { API_URL } from '@/lib/constants';
+import { Play, Ticket, Clock, Film, Sparkles, MapPin } from 'lucide-react';
 
 async function getHomeData() {
   try {
