@@ -15,9 +15,10 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Generate Prisma Client
+# Generate Prisma Client & Build TypeScript
 RUN npx prisma generate
+RUN npm run build
 
 EXPOSE 4000
 
-CMD ["sh", "-c", "npx prisma db push && npx prisma db seed && npm run start:dev"]
+CMD ["sh", "-c", "npx prisma db push && npx prisma db seed && node dist/src/main"]
