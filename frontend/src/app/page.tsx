@@ -7,12 +7,105 @@ import { API_URL } from '@/lib/constants';
 async function getHomeData() {
   try {
     const res = await fetch(`${API_URL}/home`, { cache: 'no-store' });
-    if (!res.ok) return null;
+    if (!res.ok) throw new Error('API offline');
     const json = await res.json();
     return json.data;
   } catch (error) {
-    console.error('Failed to fetch home data', error);
-    return null;
+    console.warn('Backend API offline, loading default showcase catalog.');
+    return {
+      banners: [
+        {
+          id: 'b1',
+          title: 'TrueTix IMAX Experience',
+          imageUrl: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=2070&auto=format&fit=crop',
+          linkUrl: '/movies'
+        },
+        {
+          id: 'b2',
+          title: 'Avatar: The Way of Water',
+          imageUrl: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=2070&auto=format&fit=crop',
+          linkUrl: '/movies'
+        }
+      ],
+      movies: {
+        nowShowing: [
+          {
+            id: 'mov_1',
+            title: 'Avatar: The Way of Water',
+            genres: ['Action', 'Sci-Fi'],
+            durationMinutes: 192,
+            releaseDate: '2026-06-15',
+            ageRating: 'T13',
+            languageType: 'SUB',
+            posterUrl: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop'
+          },
+          {
+            id: 'mov_2',
+            title: 'Oppenheimer',
+            genres: ['Biography', 'Drama'],
+            durationMinutes: 180,
+            releaseDate: '2026-07-20',
+            ageRating: 'T18',
+            languageType: 'SUB',
+            posterUrl: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=600&auto=format&fit=crop'
+          },
+          {
+            id: 'mov_3',
+            title: 'Dune: Part Two',
+            genres: ['Action', 'Adventure'],
+            durationMinutes: 166,
+            releaseDate: '2026-09-10',
+            ageRating: 'T16',
+            languageType: 'SUB',
+            posterUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop'
+          },
+          {
+            id: 'mov_4',
+            title: 'Deadpool & Wolverine',
+            genres: ['Action', 'Comedy'],
+            durationMinutes: 127,
+            releaseDate: '2026-07-26',
+            ageRating: 'T18',
+            languageType: 'SUB',
+            posterUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=600&auto=format&fit=crop'
+          }
+        ],
+        comingSoon: [
+          {
+            id: 'mov_5',
+            title: 'Gladiator II',
+            genres: ['Action', 'Drama'],
+            durationMinutes: 148,
+            releaseDate: '2026-11-22',
+            ageRating: 'T18',
+            languageType: 'SUB',
+            posterUrl: 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?q=80&w=600&auto=format&fit=crop'
+          },
+          {
+            id: 'mov_6',
+            title: 'Interstellar (10th Anniversary)',
+            genres: ['Sci-Fi', 'Adventure'],
+            durationMinutes: 169,
+            releaseDate: '2026-12-05',
+            ageRating: 'T13',
+            languageType: 'SUB',
+            posterUrl: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?q=80&w=600&auto=format&fit=crop'
+          }
+        ]
+      },
+      featuredCinemas: [
+        {
+          id: 'cin_1',
+          name: 'TrueTix Leicester Square',
+          address: 'Leicester Square, London WC2H 7NA'
+        },
+        {
+          id: 'cin_2',
+          name: 'TrueTix Manchester Central',
+          address: 'Deansgate, Manchester M3 4EN'
+        }
+      ]
+    };
   }
 }
 

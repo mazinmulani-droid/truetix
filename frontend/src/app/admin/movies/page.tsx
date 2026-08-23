@@ -63,7 +63,48 @@ export default function AdminMoviesPage() {
       }
     } catch (error) {
       console.error('Failed to fetch movies', error);
-      toast.error('Failed to fetch film list');
+      // Fallback sample movies for standalone demo mode
+      setMovies([
+        {
+          id: 'mov_1',
+          title: 'Avatar: The Way of Water',
+          titleOriginal: 'Avatar: The Way of Water',
+          director: 'James Cameron',
+          cast: 'Sam Worthington, Zoe Saldana',
+          genres: ['Action', 'Sci-Fi', 'Adventure'],
+          durationMinutes: 192,
+          releaseDate: '2026-06-15',
+          status: 'NOW_SHOWING',
+          posterUrl: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop',
+          description: 'Jake Sully lives with his newfound family formed on the extrasolar moon Pandora.'
+        },
+        {
+          id: 'mov_2',
+          title: 'Oppenheimer',
+          titleOriginal: 'Oppenheimer',
+          director: 'Christopher Nolan',
+          cast: 'Cillian Murphy, Emily Blunt, Robert Downey Jr.',
+          genres: ['Biography', 'Drama', 'History'],
+          durationMinutes: 180,
+          releaseDate: '2026-07-20',
+          status: 'NOW_SHOWING',
+          posterUrl: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=600&auto=format&fit=crop',
+          description: 'The story of American scientist J. Robert Oppenheimer and his role in the development of the atomic bomb.'
+        },
+        {
+          id: 'mov_3',
+          title: 'Dune: Part Two',
+          titleOriginal: 'Dune: Part Two',
+          director: 'Denis Villeneuve',
+          cast: 'Timothée Chalamet, Zendaya, Rebecca Ferguson',
+          genres: ['Action', 'Adventure', 'Drama'],
+          durationMinutes: 166,
+          releaseDate: '2026-09-10',
+          status: 'COMING_SOON',
+          posterUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop',
+          description: 'Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.'
+        }
+      ] as any);
     } finally {
       setLoading(false);
     }
