@@ -214,8 +214,11 @@ function SeatsContent() {
         </div>
 
         {/* Seat Matrix */}
-        <div className="overflow-x-auto pb-8">
-          <div className="min-w-max mx-auto flex flex-col items-center gap-2">
+        <div className="overflow-x-auto pb-8 scrollbar-thin scrollbar-thumb-primary/20">
+          <p className="text-xs text-center text-muted-foreground mb-4 md:hidden">
+            ↔ Swipe horizontally to view full auditorium layout
+          </p>
+          <div className="min-w-max mx-auto flex flex-col items-center gap-2 px-4">
             {matrix?.grid?.map((rowArr: any[], rowIndex: number) => (
               <div key={`row-${rowIndex}`} className="flex items-center gap-4">
                 <div className="w-6 text-center font-bold text-muted-foreground">{String.fromCharCode(65 + rowIndex)}</div>
@@ -262,36 +265,42 @@ function SeatsContent() {
         </div>
         
         {/* Legends */}
-        <div className="flex flex-wrap justify-center gap-6 mt-8 p-4 bg-card rounded-lg border border-border">
-          <div className="flex items-center gap-2 text-sm"><div className="w-6 h-6 bg-secondary rounded-t-lg"></div> Standard</div>
-          <div className="flex items-center gap-2 text-sm"><div className="w-6 h-6 bg-amber-500/20 border border-amber-500/50 rounded-t-lg"></div> VIP</div>
-          <div className="flex items-center gap-2 text-sm"><div className="w-10 h-6 bg-pink-500/20 border border-pink-500/50 rounded-t-lg"></div> Couple</div>
-          <div className="flex items-center gap-2 text-sm"><div className="w-6 h-6 bg-primary rounded-t-lg"></div> Selected</div>
-          <div className="flex items-center gap-2 text-sm"><div className="w-6 h-6 bg-destructive/50 rounded-t-lg opacity-50"></div> Sold</div>
+        <div className="flex flex-wrap justify-center gap-4 md:gap-6 mt-6 p-4 bg-card rounded-lg border border-border">
+          <div className="flex items-center gap-2 text-xs md:text-sm"><div className="w-5 h-5 md:w-6 md:h-6 bg-secondary rounded-t-lg"></div> Standard</div>
+          <div className="flex items-center gap-2 text-xs md:text-sm"><div className="w-5 h-5 md:w-6 md:h-6 bg-amber-500/20 border border-amber-500/50 rounded-t-lg"></div> VIP</div>
+          <div className="flex items-center gap-2 text-xs md:text-sm"><div className="w-8 h-5 md:w-10 md:h-6 bg-pink-500/20 border border-pink-500/50 rounded-t-lg"></div> Couple</div>
+          <div className="flex items-center gap-2 text-xs md:text-sm"><div className="w-5 h-5 md:w-6 md:h-6 bg-primary rounded-t-lg"></div> Selected</div>
+          <div className="flex items-center gap-2 text-xs md:text-sm"><div className="w-5 h-5 md:w-6 md:h-6 bg-destructive/50 rounded-t-lg opacity-50"></div> Sold</div>
         </div>
       </div>
 
       {/* Bottom Summary Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-50 p-4">
-        <div className="container mx-auto flex justify-between items-center">
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Selected seats:</p>
-            <p className="font-bold text-lg min-h-[1.75rem]">
-              {selectedSeats.length > 0 
-                ? selectedSeats.map(s => s.name).join(', ') 
-                : 'No seats selected yet'}
-            </p>
+      <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-xl border-t border-border shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-50 p-3 md:p-4">
+        <div className="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
+          <div className="w-full sm:w-auto flex justify-between sm:block">
+            <div>
+              <p className="text-xs text-muted-foreground">Selected seats:</p>
+              <p className="font-bold text-sm md:text-base max-w-[200px] md:max-w-none truncate">
+                {selectedSeats.length > 0 
+                  ? selectedSeats.map(s => s.name).join(', ') 
+                  : 'None selected'}
+              </p>
+            </div>
+            <div className="text-right sm:hidden">
+              <p className="text-xs text-muted-foreground">Subtotal:</p>
+              <p className="font-bold text-lg text-primary">{totalPrice.toLocaleString('vi-VN')} ₫</p>
+            </div>
           </div>
-          <div className="flex items-center gap-6">
-            <div className="text-right hidden md:block">
-              <p className="text-sm text-muted-foreground mb-1">Subtotal:</p>
+          <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-4">
+            <div className="text-right hidden sm:block">
+              <p className="text-xs text-muted-foreground">Subtotal:</p>
               <p className="font-bold text-2xl text-primary">{totalPrice.toLocaleString('vi-VN')} ₫</p>
             </div>
             <Button 
               size="lg" 
               onClick={handleHoldSeats}
               disabled={selectedSeats.length === 0}
-              className="text-lg font-bold px-8 shadow-lg shadow-primary/30"
+              className="w-full sm:w-auto text-base md:text-lg font-bold px-8 shadow-lg shadow-primary/30"
             >
               Continue <ChevronRight className="ml-2 w-5 h-5" />
             </Button>

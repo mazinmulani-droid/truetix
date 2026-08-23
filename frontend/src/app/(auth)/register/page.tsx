@@ -52,17 +52,68 @@ export default function RegisterPage() {
     }
   };
 
+  const handleGoogleRegister = async () => {
+    try {
+      setLoading(true);
+      const mockOAuthEmail = formData.email || `user_${Math.random().toString(36).substring(2, 7)}@gmail.com`;
+      const mockFullName = formData.fullName || mockOAuthEmail.split('@')[0].replace(/[^a-zA-Z]/g, ' ') || 'Google User';
+
+      const res: any = await api.post('/auth/oauth/google', {
+        email: mockOAuthEmail,
+        fullName: mockFullName,
+        provider: 'GOOGLE',
+        googleId: `google_${Date.now()}`
+      });
+
+      if (res.success) {
+        const { user, accessToken, refreshToken } = res.data;
+        setAuth(user, accessToken, refreshToken);
+        toast.success(`Welcome to TrueTix, ${user.fullName}!`);
+        router.push('/');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error?.message || 'Google registration failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">Register Account</CardTitle>
           <CardDescription>
-            Fill in the details below to create a new ClGV account
+            Create your TrueTix account with email or Google
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleRegister}>
           <CardContent className="space-y-4">
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="w-full flex items-center justify-center gap-3 border-border hover:bg-muted/80"
+              disabled={loading}
+              onClick={handleGoogleRegister}
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path fill="#EA4335" d="M12 5c1.7 0 3 .7 3.9 1.6l2.9-2.9C17 2 14.7 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z" />
+                <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z" />
+                <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15s.7 5.3 1.9 7.7l3.7-2.9z" />
+                <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16c1.8 3.7 5.6 6.3 10.1 6.3z" />
+              </svg>
+              Sign up with Google
+            </Button>
+
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">Or with email</span>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="fullName">Full Name</Label>
               <Input

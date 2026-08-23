@@ -23,8 +23,8 @@ const geistMono = Geist_Mono({
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'ClGV - Film Ticket Platform',
-  description: 'Experience world-class cinema with ClGV',
+  title: 'TrueTix - Film & Event Ticket Booking Platform',
+  description: 'Experience world-class cinema and event ticketing with TrueTix',
 };
 
 export default function RootLayout({

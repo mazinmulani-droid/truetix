@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh.dto';
+import { OAuthLoginDto } from './dto/oauth.dto';
 
 @Injectable()
 export class AuthService {
@@ -103,6 +104,37 @@ export class AuthService {
     await this.saveRefreshToken(tokenRecord.user.id, tokens.refreshToken);
 
     return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
+  }
+
+  // Google / OAuth 2.0 Login
+  async oauthLogin(dto: OAuthLoginDto) {
+    let user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (!user) {
+      // Auto-create user on first OAuth login
+      const randomPassword = await bcrypt.hash(Math.random().toString(36) + Date.now().toString(), 10);
+      user = await this.prisma.user.create({
+        data: {
+          email: dto.email,
+          fullName: dto.fullName || dto.email.split('@')[0],
+          password: randomPassword,
+          avatar: dto.avatar || null,
+        },
+      });
+    }
+
+    const tokens = await this.generateTokens(user.id, user.email, user.role);
+    await this.saveRefreshToken(user.id, tokens.refreshToken);
+
+    const { password, ...userWithoutPassword } = user;
+
+    return {
+      user: userWithoutPassword,
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
     };
