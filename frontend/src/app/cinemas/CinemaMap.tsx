@@ -29,7 +29,7 @@ function MapUpdater({ center, cinemas, userLoc }: { center: [number, number], ci
       cinemas.slice(0, 3).forEach(c => {
         if (c.lat && c.lng) bounds.extend([c.lat, c.lng]);
       });
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 13 });
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
     } else {
       map.setView(center, 11);
     }

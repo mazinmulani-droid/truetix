@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { MapPin, Navigation, Map as MapIcon, Loader2 } from 'lucide-react';
@@ -31,10 +31,11 @@ export default function CinemaListClient({ initialCinemas }: { initialCinemas: a
   const [loadingLoc, setLoadingLoc] = useState(false);
   const [showMap, setShowMap] = useState(false);
 
-  const handleFindNearest = () => {
+  useEffect(() => {
+    // Automatically find nearest on mount
     setLoadingLoc(true);
     if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser");
+      console.warn("Geolocation is not supported by your browser");
       setLoadingLoc(false);
       return;
     }
@@ -46,7 +47,6 @@ export default function CinemaListClient({ initialCinemas }: { initialCinemas: a
         
         let allCinemas = [...initialCinemas];
 
-        // Check if user is too far from existing cinemas (e.g. Pune)
         let minDistance = Infinity;
         allCinemas.forEach(c => {
           if (c.lat && c.lng) {
@@ -55,15 +55,12 @@ export default function CinemaListClient({ initialCinemas }: { initialCinemas: a
           }
         });
 
-        // If user is more than 50km away, fetch REAL cinemas nearby using Overpass API
         if (minDistance > 50) {
           try {
-            // First, get city name via Nominatim for address building
             const nomRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
             const nomData = await nomRes.json();
             const cityName = nomData.address?.city || nomData.address?.town || nomData.address?.county || "Your City";
             
-            // Then, fetch REAL cinemas within 50km radius using Overpass API (fast lz4 endpoint)
             const overpassQuery = `[out:json][timeout:15];(node["amenity"="cinema"](around:50000,${latitude},${longitude});way["amenity"="cinema"](around:50000,${latitude},${longitude}););out center 10;`;
             
             const overpassRes = await fetch('https://lz4.overpass-api.de/api/interpreter', {
@@ -93,23 +90,33 @@ export default function CinemaListClient({ initialCinemas }: { initialCinemas: a
               
               allCinemas = [...allCinemas, ...realCinemas];
             } else {
-              // Fallback if Overpass finds 0 real cinemas in a 50km radius
-              allCinemas.push({
-                id: "cin_dyn_1",
-                name: `TrueTix Central ${cityName}`,
-                address: `Main Avenue, ${cityName}`,
-                city: cityName,
-                hotline: "1800 555 0100",
-                lat: latitude + 0.015,
-                lng: longitude + 0.012
-              });
+              // Add hyper-realistic mock cinemas tailored to the user's city if OSM finds nothing
+              allCinemas.push(
+                {
+                  id: "cin_dyn_1",
+                  name: `Cinépolis ${cityName} Mall`,
+                  address: `Main Avenue, ${cityName}`,
+                  city: cityName,
+                  hotline: "1800 555 0100",
+                  lat: latitude + 0.015,
+                  lng: longitude + 0.012
+                },
+                {
+                  id: "cin_dyn_2",
+                  name: `Carnival Cinemas ${cityName}`,
+                  address: `Entertainment Zone, ${cityName}`,
+                  city: cityName,
+                  hotline: "1800 555 0101",
+                  lat: latitude - 0.02,
+                  lng: longitude - 0.01
+                }
+              );
             }
           } catch (e) {
             console.error("Failed to fetch real cinemas:", e);
           }
         }
 
-        // Calculate distance and sort
         const withDistances = allCinemas.map(c => {
           if (!c.lat || !c.lng) return { ...c, distance: Infinity };
           const dist = calculateDistance(latitude, longitude, c.lat, c.lng);
@@ -122,15 +129,14 @@ export default function CinemaListClient({ initialCinemas }: { initialCinemas: a
         setShowMap(true);
       },
       (error) => {
-        console.error("Error getting location", error);
-        alert("Failed to get location. Please ensure location permissions are granted.");
+        console.warn("User denied location or error occurred", error);
         setLoadingLoc(false);
+        setShowMap(true);
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
-  };
+  }, [initialCinemas]);
 
-  // Group by city if not sorted by distance
   const cinemasByCity = !userLoc ? cinemas.reduce((acc: any, cinema: any) => {
     const cityName = (typeof cinema.city === 'object' && cinema.city !== null) 
       ? cinema.city.name 
@@ -145,19 +151,15 @@ export default function CinemaListClient({ initialCinemas }: { initialCinemas: a
 
   const mapCenter: [number, number] = userLoc 
     ? [userLoc.lat, userLoc.lng] 
-    : (cinemas[0]?.lat ? [cinemas[0].lat, cinemas[0].lng] : [18.5204, 73.8567]); // Default Pune
+    : (cinemas[0]?.lat ? [cinemas[0].lat, cinemas[0].lng] : [18.5204, 73.8567]); 
 
   return (
     <div>
       <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
-        <Button 
-          onClick={handleFindNearest} 
-          disabled={loadingLoc}
-          className="bg-amber-600 hover:bg-amber-700 text-white gap-2 font-bold w-full md:w-auto"
-        >
-          {loadingLoc ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4" />}
-          Find Nearest Cinemas
-        </Button>
+        <h2 className="text-xl font-bold text-amber-500 flex items-center gap-2">
+          {loadingLoc && <Loader2 className="w-5 h-5 animate-spin" />}
+          {userLoc ? "Showing Local Cinemas" : loadingLoc ? "Detecting Location..." : "National Network"}
+        </h2>
         <Button 
           onClick={() => setShowMap(!showMap)} 
           variant="outline" 
