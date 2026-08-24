@@ -51,12 +51,12 @@ function LoginFormContent() {
       const isAdmin = email.toLowerCase().includes('admin');
       const mockUser = {
         id: isAdmin ? 'usr_admin_001' : 'usr_cust_' + Math.random().toString(36).substring(2, 8),
-        email: email || (isAdmin ? 'admin@clgv.vn' : 'customer@clgv.vn'),
+        email: email || (isAdmin ? 'admin@truetix.in' : 'customer@truetix.in'),
         fullName: isAdmin ? 'TrueTix Administrator' : email.split('@')[0] || 'Customer User',
         role: (isAdmin ? 'ADMIN' : 'CUSTOMER') as any,
         membershipTier: (isAdmin ? 'VVIP' : 'MEMBER') as any,
         points: isAdmin ? 500 : 150,
-        cgvCardBalance: isAdmin ? 10000000 : 500000,
+        truetixCardBalance: isAdmin ? 5000 : 1000,
       };
       executeLogin(mockUser);
     } finally {
@@ -96,7 +96,7 @@ function LoginFormContent() {
         role: 'CUSTOMER' as any,
         membershipTier: 'MEMBER' as any,
         points: 200,
-        cgvCardBalance: 300000,
+        truetixCardBalance: 500,
       };
       executeLogin(mockUser);
     } finally {
@@ -145,7 +145,7 @@ function LoginFormContent() {
               <Input
                 id="email"
                 type="email"
-                placeholder="customer@clgv.vn"
+                placeholder="customer@truetix.in"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

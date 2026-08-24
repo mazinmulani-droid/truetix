@@ -25,12 +25,12 @@ export default function AdminSettingsPage() {
 
   // States for Contact
   const [hotline, setHotline] = useState("1900 6017");
-  const [email, setEmail] = useState("support@cgv.vn");
-  const [address, setAddress] = useState("2nd Floor, Riviera Point, 2 Nguyen Van Tuong, Tan Phu Ward, District 7, Ho Chi Minh City");
-  const [facebookUrl, setFacebookUrl] = useState("https://www.facebook.com/cgvcinemavietnam");
+  const [email, setEmail] = useState("support@truetix.in");
+  const [address, setAddress] = useState("Kalyani Nagar, Pune, Maharashtra");
+  const [facebookUrl, setFacebookUrl] = useState("https://www.facebook.com/truetixindia");
 
   // States for Payments & Loyalty Points
-  const [pointConversion, setPointConversion] = useState("1000"); // 1 point = 1000 VND
+  const [pointConversion, setPointConversion] = useState("1000"); // 1 point = 1000 INR
   const [vipBonus, setVipBonus] = useState("5"); // 5%
   const [vvipBonus, setVvipBonus] = useState("10"); // 10%
   const [holdSeatTime, setHoldSeatTime] = useState("10"); // 10 mins
@@ -220,7 +220,7 @@ export default function AdminSettingsPage() {
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="pointConv">Point Conversion Rate (VND)</Label>
+                  <Label htmlFor="pointConv">Point Conversion Rate (INR)</Label>
                   <div className="relative">
                     <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">1 point =</span>
                     <Input 
@@ -230,7 +230,7 @@ export default function AdminSettingsPage() {
                       value={pointConversion}
                       onChange={(e) => setPointConversion(e.target.value)}
                     />
-                    <span className="absolute right-3 top-2.5 text-sm text-muted-foreground">₫</span>
+                    <span className="absolute right-3 top-2.5 text-sm text-muted-foreground">₹</span>
                   </div>
                 </div>
                 <div className="space-y-2">

@@ -35,7 +35,7 @@ export default function CheckoutPage() {
   } = useBookingStore();
   
   const { isAuthenticated, user, accessToken } = useAuthStore();
-  const [paymentMethod, setPaymentMethod] = useState<'VNPAY' | 'CGV_CARD' | 'VIETQR'>('CGV_CARD');
+  const [paymentMethod, setPaymentMethod] = useState<'CREDIT_CARD' | 'TRUETIX_CARD' | 'UPI'>('TRUETIX_CARD');
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentQr, setPaymentQr] = useState<string | null>(null);
   const [bookingId, setBookingId] = useState<string | null>(null);
@@ -73,13 +73,13 @@ export default function CheckoutPage() {
         if (res.data.success) {
           const { bookingId, paymentUrl } = res.data.data;
           
-          if (paymentMethod === 'VNPAY' && paymentUrl) {
-            const frontendPaymentUrl = paymentUrl.includes('/api/v1/payments/vnpay/mock-gateway')
-              ? paymentUrl.replace(/https?:\/\/[^\/]+\/api\/v1\/payments\/vnpay\/mock-gateway/, '/payment/mock-gateway')
+          if (paymentMethod === 'CREDIT_CARD' && paymentUrl) {
+            const frontendPaymentUrl = paymentUrl.includes('/api/v1/payments/inpay/mock-gateway')
+              ? paymentUrl.replace(/https?:\/\/[^\/]+\/api\/v1\/payments\/inpay\/mock-gateway/, '/payment/mock-gateway')
               : paymentUrl;
             window.location.href = frontendPaymentUrl;
             return;
-          } else if (paymentMethod === 'VIETQR') {
+          } else if (paymentMethod === 'UPI') {
             setPaymentQr(paymentUrl);
             setBookingId(bookingId);
             return;
@@ -153,8 +153,8 @@ export default function CheckoutPage() {
                 
                 {/* Option 1: TrueTix Direct Card */}
                 <div 
-                  className={`p-4 border rounded-xl cursor-pointer flex items-center justify-between transition-all ${paymentMethod === 'CGV_CARD' ? 'border-primary bg-primary/10 shadow-[0_0_15px_rgba(225,29,72,0.2)]' : 'border-white/10 hover:border-white/30 bg-black/40'}`}
-                  onClick={() => setPaymentMethod('CGV_CARD')}
+                  className={`p-4 border rounded-xl cursor-pointer flex items-center justify-between transition-all ${paymentMethod === 'TRUETIX_CARD' ? 'border-primary bg-primary/10 shadow-[0_0_15px_rgba(225,29,72,0.2)]' : 'border-white/10 hover:border-white/30 bg-black/40'}`}
+                  onClick={() => setPaymentMethod('TRUETIX_CARD')}
                 >
                   <div className="flex items-center gap-4">
                     <div className="bg-primary/20 p-3 rounded-lg text-primary border border-primary/30">
@@ -165,15 +165,15 @@ export default function CheckoutPage() {
                       <p className="text-xs text-muted-foreground">Instant payment with TrueTix wallet balance or saved card</p>
                     </div>
                   </div>
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'CGV_CARD' ? 'border-primary' : 'border-muted'}`}>
-                    {paymentMethod === 'CGV_CARD' && <div className="w-3 h-3 bg-primary rounded-full shadow-[0_0_8px_rgba(225,29,72,0.8)]" />}
+                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'TRUETIX_CARD' ? 'border-primary' : 'border-muted'}`}>
+                    {paymentMethod === 'TRUETIX_CARD' && <div className="w-3 h-3 bg-primary rounded-full shadow-[0_0_8px_rgba(225,29,72,0.8)]" />}
                   </div>
                 </div>
 
                 {/* Option 2: Credit Card / International Gateway */}
                 <div 
-                  className={`p-4 border rounded-xl cursor-pointer flex items-center justify-between transition-all ${paymentMethod === 'VNPAY' ? 'border-primary bg-primary/10 shadow-[0_0_15px_rgba(225,29,72,0.2)]' : 'border-white/10 hover:border-white/30 bg-black/40'}`}
-                  onClick={() => setPaymentMethod('VNPAY')}
+                  className={`p-4 border rounded-xl cursor-pointer flex items-center justify-between transition-all ${paymentMethod === 'CREDIT_CARD' ? 'border-primary bg-primary/10 shadow-[0_0_15px_rgba(225,29,72,0.2)]' : 'border-white/10 hover:border-white/30 bg-black/40'}`}
+                  onClick={() => setPaymentMethod('CREDIT_CARD')}
                 >
                   <div className="flex items-center gap-4">
                     <div className="bg-blue-500/20 p-3 rounded-lg text-blue-400 border border-blue-500/30">
@@ -184,15 +184,15 @@ export default function CheckoutPage() {
                       <p className="text-xs text-muted-foreground">Secured with 256-bit SSL encryption</p>
                     </div>
                   </div>
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'VNPAY' ? 'border-primary' : 'border-muted'}`}>
-                    {paymentMethod === 'VNPAY' && <div className="w-3 h-3 bg-primary rounded-full shadow-[0_0_8px_rgba(225,29,72,0.8)]" />}
+                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'CREDIT_CARD' ? 'border-primary' : 'border-muted'}`}>
+                    {paymentMethod === 'CREDIT_CARD' && <div className="w-3 h-3 bg-primary rounded-full shadow-[0_0_8px_rgba(225,29,72,0.8)]" />}
                   </div>
                 </div>
 
                 {/* Option 3: Instant Banking QR Pay */}
                 <div 
-                  className={`p-4 border rounded-xl cursor-pointer flex items-center justify-between transition-all ${paymentMethod === 'VIETQR' ? 'border-primary bg-primary/10 shadow-[0_0_15px_rgba(225,29,72,0.2)]' : 'border-white/10 hover:border-white/30 bg-black/40'}`}
-                  onClick={() => setPaymentMethod('VIETQR')}
+                  className={`p-4 border rounded-xl cursor-pointer flex items-center justify-between transition-all ${paymentMethod === 'UPI' ? 'border-primary bg-primary/10 shadow-[0_0_15px_rgba(225,29,72,0.2)]' : 'border-white/10 hover:border-white/30 bg-black/40'}`}
+                  onClick={() => setPaymentMethod('UPI')}
                 >
                   <div className="flex items-center gap-4">
                     <div className="bg-green-500/20 p-3 rounded-lg text-green-400 border border-green-500/30">
@@ -203,8 +203,8 @@ export default function CheckoutPage() {
                       <p className="text-xs text-muted-foreground">Scan dynamic QR code with any mobile banking app</p>
                     </div>
                   </div>
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'VIETQR' ? 'border-primary' : 'border-muted'}`}>
-                    {paymentMethod === 'VIETQR' && <div className="w-3 h-3 bg-primary rounded-full shadow-[0_0_8px_rgba(225,29,72,0.8)]" />}
+                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'UPI' ? 'border-primary' : 'border-muted'}`}>
+                    {paymentMethod === 'UPI' && <div className="w-3 h-3 bg-primary rounded-full shadow-[0_0_8px_rgba(225,29,72,0.8)]" />}
                   </div>
                 </div>
 
@@ -233,7 +233,7 @@ export default function CheckoutPage() {
                       <p className="font-bold text-white">Cinema Seats ({selectedSeats.length})</p>
                       <p className="text-xs text-muted-foreground mt-0.5">Seats: {selectedSeats.map(s => s.name).join(', ')}</p>
                     </div>
-                    <p className="font-black text-white">{seatsTotal.toLocaleString('en-US')} VND</p>
+                    <p className="font-black text-white">{seatsTotal.toLocaleString('en-IN')} INR</p>
                   </div>
 
                   {/* Combos */}
@@ -244,7 +244,7 @@ export default function CheckoutPage() {
                         {combos.map(combo => (
                           <div key={combo.comboId} className="flex justify-between text-xs">
                             <span className="text-gray-300">{combo.quantity}x {combo.name}</span>
-                            <span className="font-mono text-white">{(combo.price * combo.quantity).toLocaleString('en-US')} VND</span>
+                            <span className="font-mono text-white">{(combo.price * combo.quantity).toLocaleString('en-IN')} INR</span>
                           </div>
                         ))}
                       </div>
@@ -257,7 +257,7 @@ export default function CheckoutPage() {
                       <span className="font-bold text-xs flex items-center gap-1.5">
                         <Ticket className="w-4 h-4" /> Promo Code: {appliedVoucher.code}
                       </span>
-                      <span className="font-black text-sm">-{appliedVoucher.discountAmount.toLocaleString('en-US')} VND</span>
+                      <span className="font-black text-sm">-{appliedVoucher.discountAmount.toLocaleString('en-IN')} INR</span>
                     </div>
                   )}
                 </div>
@@ -265,7 +265,7 @@ export default function CheckoutPage() {
                 {/* Total */}
                 <div className="p-6 bg-primary/10 border-t border-primary/20 flex justify-between items-center">
                   <span className="font-black text-white text-lg uppercase tracking-wider">Total</span>
-                  <span className="font-black text-3xl text-primary">{getTotalAmount().toLocaleString('en-US')} VND</span>
+                  <span className="font-black text-3xl text-primary">{getTotalAmount().toLocaleString('en-IN')} INR</span>
                 </div>
 
                 <div className="p-6 pt-2">

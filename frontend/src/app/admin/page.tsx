@@ -56,11 +56,11 @@ export default function AdminDashboardPage() {
           revenue: 284000000,
           timeline: [
             { date: '18/08', revenue: 32000000 },
-            { date: '19/08', revenue: 45000000 },
+            { date: '19/08', revenue: 410000 },
             { date: '20/08', revenue: 38000000 },
             { date: '21/08', revenue: 52000000 },
             { date: '22/08', revenue: 64000000 },
-            { date: '23/08', revenue: 53000000 },
+            { date: '23/08', revenue: 55000 },
           ] as any,
           occupancy: [
             { movieTitle: 'Avatar: Way of Water', hallName: 'IMAX 1', occupancyRate: 92 },
@@ -94,7 +94,7 @@ export default function AdminDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">
-              {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(stats.revenue)}
+              {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(stats.revenue)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">From completed bookings</p>
           </CardContent>
@@ -147,7 +147,7 @@ export default function AdminDashboardPage() {
                   <XAxis dataKey="date" stroke="#888" />
                   <YAxis stroke="#888" tickFormatter={(val) => `${val / 1000000}M`} />
                   <Tooltip 
-                    formatter={(value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value)}
+                    formatter={(value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(value)}
                     contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px' }}
                   />
                   <Line type="monotone" dataKey="revenue" stroke="#ff3b30" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 8 }} />
@@ -199,7 +199,7 @@ export default function AdminDashboardPage() {
                     </div>
                     <div className="text-right">
                       <p className="font-bold text-primary">
-                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(booking.totalAmount)}
+                        {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(booking.totalAmount)}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {new Date(booking.createdAt).toLocaleString('en-GB')}

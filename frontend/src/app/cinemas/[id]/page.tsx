@@ -6,10 +6,10 @@ import { API_URL } from '@/lib/constants';
 const DEFAULT_CINEMAS = [
   {
     id: "cin_1",
-    name: "CLGV Vincom Center Landmark 81",
-    address: "B1 Floor, Vincom Center Landmark 81, 720A Dien Bien Phu, Ward 22, Binh Thanh District",
-    city: "Ho Chi Minh City",
-    hotline: "1900 6017",
+    name: "TrueTix Phoenix Marketcity",
+    address: "Viman Nagar Road, Viman Nagar, Pune, Maharashtra 411014",
+    city: "Pune",
+    hotline: "1800 123 4567",
     amenities: ["IMAX", "Free Parking", "Popcorn Stand"],
     halls: [
       { id: "hall_1", name: "Screen 1", screenType: "IMAX" },
@@ -19,10 +19,10 @@ const DEFAULT_CINEMAS = [
   },
   {
     id: "cin_2",
-    name: "CLGV Aeon Mall Tan Phu Celadon",
-    address: "3rd Floor, Aeon Mall Tan Phu Celadon, 30 Bo Bao Tan Thang, Son Ky Ward, Tan Phu District",
-    city: "Ho Chi Minh City",
-    hotline: "1900 6017",
+    name: "TrueTix Amanora Mall",
+    address: "Amanora Park Town, Hadapsar, Pune, Maharashtra 411028",
+    city: "Pune",
+    hotline: "1800 123 4567",
     amenities: ["Free Parking", "Popcorn Stand"],
     halls: [
       { id: "hall_4", name: "Screen 1", screenType: "2D" },
@@ -31,10 +31,10 @@ const DEFAULT_CINEMAS = [
   },
   {
     id: "cin_3",
-    name: "CLGV Vincom Mega Mall Royal City",
-    address: "B2- R4, Vincom Mega Mall Royal City, 72A Nguyen Trai, Thanh Xuan District",
-    city: "Hanoi",
-    hotline: "1900 6017",
+    name: "TrueTix Seasons Mall",
+    address: "Magarpatta City, Hadapsar, Pune, Maharashtra 411013",
+    city: "Pune",
+    hotline: "1800 123 4567",
     amenities: ["Free Parking", "VIP Lounge"],
     halls: [
       { id: "hall_6", name: "Screen 1", screenType: "2D" }
@@ -42,10 +42,10 @@ const DEFAULT_CINEMAS = [
   },
   {
     id: "cin_4",
-    name: "CLGV Vincom Mega Mall Times City",
-    address: "B1 Floor, Times City, 458 Minh Khai, Hai Ba Trung District",
-    city: "Hanoi",
-    hotline: "1900 6017",
+    name: "TrueTix Westend Mall",
+    address: "Aundh, Pune, Maharashtra 411007",
+    city: "Pune",
+    hotline: "1800 123 4567",
     amenities: ["Free Parking"],
     halls: [
       { id: "hall_7", name: "Screen 1", screenType: "2D" }
@@ -53,10 +53,10 @@ const DEFAULT_CINEMAS = [
   },
   {
     id: "cin_5",
-    name: "CLGV Vincom Plaza Da Nang",
-    address: "4th Floor, Vincom Plaza, Ngo Quyen, An Hai Bac Ward, Son Tra District",
-    city: "Da Nang",
-    hotline: "1900 6017",
+    name: "TrueTix Pavilion Mall",
+    address: "Senapati Bapat Road, Shivajinagar, Pune, Maharashtra 411016",
+    city: "Pune",
+    hotline: "1800 123 4567",
     amenities: ["Free Parking", "Popcorn Stand"],
     halls: [
       { id: "hall_8", name: "Screen 1", screenType: "2D" }

@@ -116,7 +116,7 @@ export default function AdminCombosPage() {
               <div>
                 <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{combo.description}</p>
                 <p className="font-bold text-lg text-primary mb-4">
-                  {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(combo.price)}
+                  {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(combo.price)}
                 </p>
               </div>
               <div className="flex justify-end gap-2 mt-auto">
@@ -140,7 +140,7 @@ export default function AdminCombosPage() {
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
             <div className="space-y-2">
               <Label>Combo Title</Label>
-              <Input required value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} placeholder="e.g. ClGV Combo 1" />
+              <Input required value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} placeholder="e.g. TrueTix Combo 1" />
             </div>
             <div className="space-y-2">
               <Label>Description</Label>
@@ -151,7 +151,7 @@ export default function AdminCombosPage() {
               <Input value={formData.imageUrl} onChange={(e) => setFormData({...formData, imageUrl: e.target.value})} placeholder="https://..." />
             </div>
             <div className="space-y-2">
-              <Label>Price (VND)</Label>
+              <Label>Price (INR)</Label>
               <Input type="number" required value={formData.price} onChange={(e) => setFormData({...formData, price: parseInt(e.target.value) || 0})} />
             </div>
             <div className="flex justify-end pt-4">

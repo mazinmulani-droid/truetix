@@ -27,28 +27,28 @@ const DEFAULT_COMBOS = [
     id: 'combo_1',
     title: 'Single Combo (1 Popcorn + 1 Soft Drink)',
     description: '1 Large Butter Popcorn (64oz) & 1 Large Soft Drink (32oz)',
-    price: 85000,
+    price: 350,
     imageUrl: 'https://images.unsplash.com/photo-1585647347483-22b66260dfff?q=80&w=600&auto=format&fit=crop',
   },
   {
     id: 'combo_2',
     title: 'Couple Combo (1 Jumbo Popcorn + 2 Drinks)',
     description: '1 Jumbo Sweet/Salted Popcorn & 2 Large Soft Drinks of your choice',
-    price: 115000,
+    price: 450,
     imageUrl: 'https://images.unsplash.com/photo-1572177812156-58036aae439c?q=80&w=600&auto=format&fit=crop',
   },
   {
     id: 'combo_3',
     title: 'Family Feast Combo (2 Popcorns + 4 Drinks + Nachos)',
     description: '2 Jumbo Popcorns, 4 Drinks & 1 Warm Crispy Nachos with Cheese Dip',
-    price: 210000,
+    price: 750,
     imageUrl: 'https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?q=80&w=600&auto=format&fit=crop',
   },
   {
     id: 'combo_4',
     title: 'Hot Crispy Nachos & Melted Cheese Dip',
     description: 'Warm salted artisan tortilla chips served with rich melted cheddar sauce',
-    price: 65000,
+    price: 200,
     imageUrl: 'https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?q=80&w=600&auto=format&fit=crop',
   }
 ];
@@ -123,12 +123,12 @@ export default function FBAndVoucherPage() {
     // Sample voucher codes support for standalone mode
     const upper = voucherCode.trim().toUpperCase();
     if (upper === 'WELCOME20' || upper === 'TRUETIX50' || upper === 'DISCOUNT10') {
-      const discount = upper === 'TRUETIX50' ? 50000 : 25000;
+      const discount = upper === 'TRUETIX50' ? 50 : 25;
       applyVoucher({ 
         code: upper, 
         discountAmount: discount 
       });
-      toast.success(`Voucher "${upper}" applied! Saved ${discount.toLocaleString('en-US')} VND`);
+      toast.success(`Voucher "${upper}" applied! Saved ${discount.toLocaleString('en-IN')} INR`);
       return;
     }
 
@@ -149,7 +149,7 @@ export default function FBAndVoucherPage() {
           code: voucherCode, 
           discountAmount: res.data.data.discountAmount 
         });
-        toast.success(`Voucher applied successfully! Discount: ${res.data.data.discountAmount.toLocaleString('en-US')} VND`);
+        toast.success(`Voucher applied successfully! Discount: ${res.data.data.discountAmount.toLocaleString('en-IN')} INR`);
         return;
       }
     } catch (error: any) {
@@ -208,7 +208,7 @@ export default function FBAndVoucherPage() {
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{combo.description}</p>
                       </div>
                       <div className="flex justify-between items-end pt-2">
-                        <span className="font-black text-primary text-sm">{combo.price.toLocaleString('en-US')} VND</span>
+                        <span className="font-black text-primary text-sm">{combo.price.toLocaleString('en-IN')} INR</span>
                         <div className="flex items-center gap-2">
                           <Button
                             variant="outline"
@@ -271,7 +271,7 @@ export default function FBAndVoucherPage() {
                       <CheckCircle2 className="text-primary w-5 h-5" />
                       <div>
                         <p className="font-bold text-white text-sm">Voucher Applied: {appliedVoucher.code}</p>
-                        <p className="text-xs text-primary font-bold">Discount: -{appliedVoucher.discountAmount.toLocaleString('en-US')} VND</p>
+                        <p className="text-xs text-primary font-bold">Discount: -{appliedVoucher.discountAmount.toLocaleString('en-IN')} INR</p>
                       </div>
                     </div>
                     <Button variant="ghost" size="sm" onClick={() => applyVoucher(null)} className="text-xs text-muted-foreground hover:text-white">Remove</Button>
@@ -301,10 +301,10 @@ export default function FBAndVoucherPage() {
               <div className="flex items-end gap-2 flex-col md:flex-row">
                 {appliedVoucher && (
                   <span className="text-xs line-through text-muted-foreground font-mono">
-                    {(getTotalAmount() + appliedVoucher.discountAmount).toLocaleString('en-US')} VND
+                    {(getTotalAmount() + appliedVoucher.discountAmount).toLocaleString('en-IN')} INR
                   </span>
                 )}
-                <span className="font-black text-2xl text-primary">{getTotalAmount().toLocaleString('en-US')} VND</span>
+                <span className="font-black text-2xl text-primary">{getTotalAmount().toLocaleString('en-IN')} INR</span>
               </div>
             </div>
             

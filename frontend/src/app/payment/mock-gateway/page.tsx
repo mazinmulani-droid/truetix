@@ -35,12 +35,12 @@ function MockGatewayContent() {
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 1500));
     
-    const responseCode = success ? '00' : '24'; // 00 is success, 24 is cancelled in VNPAY
+    const responseCode = success ? '00' : '24'; // 00 is success, 24 is cancelled in CREDIT_CARD
     
     try {
       // Call backend callback
       await axios.get(
-        `${API_URL}/payments/vnpay/callback?vnp_ResponseCode=${responseCode}&vnp_TxnRef=${orderId}&vnp_Amount=${amount}`
+        `${API_URL}/payments/inpay/callback?inp_ResponseCode=${responseCode}&inp_TxnRef=${orderId}&inp_Amount=${amount}`
       );
       
       if (success) {
@@ -60,7 +60,7 @@ function MockGatewayContent() {
   return (
     <div className="max-w-md mx-auto space-y-6">
       <div className="text-center space-y-2">
-        <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">VNPAY SANDBOX</h1>
+        <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">CREDIT_CARD SANDBOX</h1>
         <p className="text-sm text-muted-foreground">Payment Simulator (Mock Gateway)</p>
       </div>
       
@@ -68,7 +68,7 @@ function MockGatewayContent() {
         <CardHeader className="bg-muted/50 border-b">
           <CardTitle className="text-lg flex items-center justify-between">
             <span>Order Details</span>
-            <span className="text-primary font-bold">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(amount))}</span>
+            <span className="text-primary font-bold">{new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(amount))}</span>
           </CardTitle>
           <CardDescription>Order ID: {orderId}</CardDescription>
         </CardHeader>

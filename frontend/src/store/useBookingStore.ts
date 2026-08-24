@@ -104,7 +104,7 @@ export const useBookingStore = create<BookingState>()(
       },
     }),
     {
-      name: 'clgv-booking-storage',
+      name: 'truetix-booking-storage',
     }
   )
 );

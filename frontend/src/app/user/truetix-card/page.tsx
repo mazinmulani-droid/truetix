@@ -11,7 +11,7 @@ import { format } from 'date-fns';
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-export default function CGVCardPage() {
+export default function TrueTixCardPage() {
   const { user, isAuthenticated, fetchUser } = useAuthStore();
   const [history, setHistory] = useState<any[]>([]);
   const [balance, setBalance] = useState(0);
@@ -27,13 +27,13 @@ export default function CGVCardPage() {
 
   const fetchBalanceAndHistory = async () => {
     try {
-      const res = await api.get('/cgv-card/balance');
+      const res = await api.get('/truetix-card/balance');
       if (res.success) {
         setBalance(res.data.balance || 0);
         setHistory(res.data.history || []);
       }
     } catch (error) {
-      console.error('Failed to fetch CGV Card info:', error);
+      console.error('Failed to fetch TrueTix Card info:', error);
     } finally {
       setLoading(false);
     }
@@ -42,15 +42,15 @@ export default function CGVCardPage() {
   const handleTopup = async () => {
     const amount = parseInt(topupAmount.replace(/,/g, ''));
     if (!amount || amount < 50000) {
-      toast.error('Minimum top-up amount is 50,000 VND');
+      toast.error('Minimum top-up amount is 50,000 INR');
       return;
     }
 
     setIsProcessing(true);
     try {
-      const res = await api.post('/cgv-card/topup', {
+      const res = await api.post('/truetix-card/topup', {
         amount,
-        paymentMethod: 'VNPAY'
+        paymentMethod: 'CREDIT_CARD'
       });
       if (res.success) {
         toast.success('Top-up successful!');
@@ -75,7 +75,7 @@ export default function CGVCardPage() {
     <div className="p-8 space-y-8">
       <div className="flex items-center gap-3">
         <CreditCard className="w-8 h-8 text-primary" />
-        <h1 className="text-3xl font-bold">ClGV Card</h1>
+        <h1 className="text-3xl font-bold">TrueTix Card</h1>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -92,7 +92,7 @@ export default function CGVCardPage() {
                 <div>
                   <p className="text-sm text-zinc-400 mb-1">Current Balance</p>
                   <p className="text-3xl font-bold">
-                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(balance)}
+                    {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(balance)}
                   </p>
                 </div>
                 <CreditCard className="w-10 h-10 text-primary opacity-80" />
@@ -101,7 +101,7 @@ export default function CGVCardPage() {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Enter top-up amount (VND)</Label>
+                <Label>Enter top-up amount (INR)</Label>
                 <Input 
                   type="number" 
                   placeholder="e.g. 100000"
@@ -114,7 +114,7 @@ export default function CGVCardPage() {
                 <Button variant="outline" size="sm" onClick={() => handleQuickAmount(50000)}>50K</Button>
                 <Button variant="outline" size="sm" onClick={() => handleQuickAmount(100000)}>100K</Button>
                 <Button variant="outline" size="sm" onClick={() => handleQuickAmount(200000)}>200K</Button>
-                <Button variant="outline" size="sm" onClick={() => handleQuickAmount(500000)}>500K</Button>
+                <Button variant="outline" size="sm" onClick={() => handleQuickAmount(1000)}>500K</Button>
               </div>
 
               <Button 
@@ -152,14 +152,14 @@ export default function CGVCardPage() {
                     </div>
                     <div className={`font-bold ${record.type === 'TOPUP' ? 'text-green-500' : 'text-white'}`}>
                       {record.type === 'TOPUP' ? '+' : '-'}
-                      {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(record.amount)}
+                      {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(record.amount)}
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                No ClGV card transactions found.
+                No TrueTix card transactions found.
               </div>
             )}
           </CardContent>

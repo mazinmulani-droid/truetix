@@ -44,7 +44,7 @@ const generateDefaultMatrix = () => {
         type: type,
         status: isSold ? 'SOLD' : 'AVAILABLE',
         priceModifier: priceMod,
-        price: Math.round(100000 * priceMod)
+        price: Math.round(250 * priceMod)
       };
 
       rowArr.push(seatObj);
@@ -56,7 +56,7 @@ const generateDefaultMatrix = () => {
   return {
     matrix: { rows: rows.length, cols: 10, grid },
     seatMap,
-    basePrice: 100000
+    basePrice: 250
   };
 };
 
@@ -67,7 +67,7 @@ function SeatsContent() {
 
   const [matrix, setMatrix] = useState<any>(null);
   const [seats, setSeats] = useState<Record<string, Seat>>({});
-  const [basePrice, setBasePrice] = useState(100000);
+  const [basePrice, setBasePrice] = useState(250);
   const [loading, setLoading] = useState(true);
   const [secondsRemaining, setSecondsRemaining] = useState(600); // 10-min Redis TTL
   const [sessionId] = useState(() => `client_${Math.random().toString(36).substring(2, 9)}_${Date.now()}`);
@@ -408,14 +408,14 @@ function SeatsContent() {
             </div>
             <div className="text-right sm:hidden">
               <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Subtotal:</p>
-              <p className="font-black text-xl text-primary">{totalPrice.toLocaleString('en-US')} VND</p>
+              <p className="font-black text-xl text-primary">{totalPrice.toLocaleString('en-IN')} INR</p>
             </div>
           </div>
           
           <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-6">
             <div className="text-right hidden sm:block">
               <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Subtotal:</p>
-              <p className="font-black text-2xl text-primary">{totalPrice.toLocaleString('en-US')} VND</p>
+              <p className="font-black text-2xl text-primary">{totalPrice.toLocaleString('en-IN')} INR</p>
             </div>
             
             <Button 

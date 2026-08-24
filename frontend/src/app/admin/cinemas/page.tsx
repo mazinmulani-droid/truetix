@@ -226,7 +226,7 @@ export default function AdminCinemasPage() {
               </div>
               <div className="space-y-2">
                 <Label>Cinema Name</Label>
-                <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. ClGV Leicester Square..." />
+                <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. TrueTix Leicester Square..." />
               </div>
               <div className="space-y-2">
                 <Label>Address</Label>

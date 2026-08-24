@@ -104,8 +104,8 @@ export default function AdminVouchersPage() {
             <CardContent>
               <p className="font-medium mb-4">{voucher.title}</p>
               <div className="space-y-1 text-sm text-muted-foreground">
-                <p>Discount: <span className="text-white font-bold">{voucher.discountType === 'FIXED_AMOUNT' ? `${voucher.discountValue.toLocaleString()} ₫` : `${voucher.discountValue}%`}</span></p>
-                <p>Min. Spend: {voucher.minOrderValue.toLocaleString()} ₫</p>
+                <p>Discount: <span className="text-white font-bold">{voucher.discountType === 'FIXED_AMOUNT' ? `${voucher.discountValue.toLocaleString()} ₹` : `${voucher.discountValue}%`}</span></p>
+                <p>Min. Spend: {voucher.minOrderValue.toLocaleString()} ₹</p>
                 <p>Expiry: {format(new Date(voucher.expiresAt), 'dd/MM/yyyy HH:mm')}</p>
               </div>
             </CardContent>
@@ -120,7 +120,7 @@ export default function AdminVouchersPage() {
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>Voucher Code (e.g. CLGV50K)</Label>
+              <Label>Voucher Code (e.g. TrueTix50K)</Label>
               <Input required value={formData.code} onChange={(e) => setFormData({...formData, code: e.target.value.toUpperCase()})} />
             </div>
             <div className="space-y-2">
@@ -136,7 +136,7 @@ export default function AdminVouchersPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="FIXED_AMOUNT">Fixed Amount (VND)</SelectItem>
+                    <SelectItem value="FIXED_AMOUNT">Fixed Amount (INR)</SelectItem>
                     <SelectItem value="PERCENTAGE">Percentage (%)</SelectItem>
                   </SelectContent>
                 </Select>
@@ -148,7 +148,7 @@ export default function AdminVouchersPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Minimum Order Value (VND)</Label>
+              <Label>Minimum Order Value (INR)</Label>
               <Input type="number" value={formData.minOrderValue} onChange={(e) => setFormData({...formData, minOrderValue: Number(e.target.value)})} />
             </div>
             

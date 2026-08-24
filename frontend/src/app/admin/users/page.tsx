@@ -27,7 +27,7 @@ export default function AdminUsersPage() {
   const [membershipForm, setMembershipForm] = useState({
     tier: '',
     points: 0,
-    cgvCardBalance: 0,
+    truetixCardBalance: 0,
     isU22Verified: false
   });
 
@@ -45,34 +45,34 @@ export default function AdminUsersPage() {
         {
           id: 'usr_admin_001',
           fullName: 'TrueTix Administrator',
-          email: 'admin@clgv.vn',
+          email: 'admin@truetix.in',
           phone: '07123456789',
           role: 'ADMIN',
           membershipTier: 'VVIP',
           points: 1200,
-          cgvCardBalance: 10000000,
+          truetixCardBalance: 5000,
           isU22Verified: true
         },
         {
           id: 'usr_cust_001',
           fullName: 'Alex Customer',
-          email: 'customer@clgv.vn',
+          email: 'customer@truetix.in',
           phone: '07987654321',
           role: 'CUSTOMER',
           membershipTier: 'VIP',
           points: 350,
-          cgvCardBalance: 500000,
+          truetixCardBalance: 1000,
           isU22Verified: true
         },
         {
           id: 'usr_scanner_001',
           fullName: 'Marcus Usher',
-          email: 'scanner@clgv.vn',
+          email: 'scanner@truetix.in',
           phone: '07555123456',
           role: 'SCANNER',
           membershipTier: 'MEMBER',
           points: 80,
-          cgvCardBalance: 0,
+          truetixCardBalance: 0,
           isU22Verified: false
         }
       ] as any);
@@ -92,7 +92,7 @@ export default function AdminUsersPage() {
     setMembershipForm({
       tier: user.membershipTier || 'MEMBER',
       points: user.points || 0,
-      cgvCardBalance: user.cgvCardBalance || 0,
+      truetixCardBalance: user.truetixCardBalance || 0,
       isU22Verified: user.isU22Verified || false
     });
     setIsMembershipDialogOpen(true);
@@ -123,7 +123,7 @@ export default function AdminUsersPage() {
       await api.put(`/admin/users/${selectedUser.id}/membership`, {
         membershipTier: membershipForm.tier,
         points: Number(membershipForm.points),
-        cgvCardBalance: Number(membershipForm.cgvCardBalance),
+        truetixCardBalance: Number(membershipForm.truetixCardBalance),
         isU22Verified: membershipForm.isU22Verified
       });
       toast.success('Membership and card balance updated successfully');
@@ -138,7 +138,7 @@ export default function AdminUsersPage() {
       ...u,
       membershipTier: membershipForm.tier,
       points: Number(membershipForm.points),
-      cgvCardBalance: Number(membershipForm.cgvCardBalance),
+      truetixCardBalance: Number(membershipForm.truetixCardBalance),
       isU22Verified: membershipForm.isU22Verified
     } : u));
     toast.success('Membership and card balance updated successfully!');
@@ -249,7 +249,7 @@ export default function AdminUsersPage() {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">Points: <span className="text-primary font-bold">{user.points}</span></div>
-                      <div className="text-sm">Wallet: <span className="text-primary font-bold">{user.cgvCardBalance?.toLocaleString('vi-VN')} ₫</span></div>
+                      <div className="text-sm">Wallet: <span className="text-primary font-bold">{user.truetixCardBalance?.toLocaleString('en-IN')} ₹</span></div>
                     </TableCell>
                     <TableCell className="text-right space-x-2">
                       <Button variant="outline" size="sm" onClick={() => handleOpenRoleDialog(user)} title="Change Role">
@@ -346,13 +346,13 @@ export default function AdminUsersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>ClGV Card Balance (VND)</Label>
+                <Label>TrueTix Card Balance (INR)</Label>
                 <Input 
                   type="number" 
                   min="0"
                   step="1000"
-                  value={membershipForm.cgvCardBalance} 
-                  onChange={(e) => setMembershipForm({...membershipForm, cgvCardBalance: parseInt(e.target.value) || 0})} 
+                  value={membershipForm.truetixCardBalance} 
+                  onChange={(e) => setMembershipForm({...membershipForm, truetixCardBalance: parseInt(e.target.value) || 0})} 
                 />
               </div>
             </div>

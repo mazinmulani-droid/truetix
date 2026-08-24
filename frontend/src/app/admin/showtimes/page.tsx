@@ -256,7 +256,7 @@ export default function AdminShowtimesPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Base Ticket Price (VND)</Label>
+                <Label>Base Ticket Price (INR)</Label>
                 <Input type="number" value={formData.basePrice} onChange={e => setFormData({...formData, basePrice: Number(e.target.value)})} />
               </div>
             </div>
@@ -369,7 +369,7 @@ export default function AdminShowtimesPage() {
                                       <div className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(st.startTime).toLocaleDateString('en-GB')}</div>
                                       <div className="flex items-center gap-1 text-primary text-xs font-bold mt-1"><Clock className="w-3 h-3" /> {new Date(st.startTime).toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit', hour12: false})}</div>
                                     </TableCell>
-                                    <TableCell>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(st.basePrice)}</TableCell>
+                                    <TableCell>{new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(st.basePrice)}</TableCell>
                                     <TableCell>
                                       <span className="px-2 py-1 rounded-full text-xs font-bold bg-green-500/20 text-green-500">On Sale</span>
                                     </TableCell>

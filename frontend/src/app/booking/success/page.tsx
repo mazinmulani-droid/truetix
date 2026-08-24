@@ -37,7 +37,7 @@ function BookingSuccessContent() {
               {/* QR Code Section */}
               <div className="flex-shrink-0 flex flex-col items-center justify-center p-6 bg-white rounded-xl border-4 border-dashed border-gray-300">
                 <QRCodeSVG 
-                  value={`CLGV_TICKET_${bookingId}_HMAC_VALID`}
+                  value={`TrueTix_TICKET_${bookingId}_HMAC_VALID`}
                   size={150}
                   bgColor={"#ffffff"}
                   fgColor={"#000000"}
@@ -49,7 +49,7 @@ function BookingSuccessContent() {
               {/* Details */}
               <div className="flex-1 space-y-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-primary uppercase mb-1">ClGV Cinema Experience</h2>
+                  <h2 className="text-2xl font-bold text-primary uppercase mb-1">TrueTix Cinema Experience</h2>
                   <p className="text-sm font-medium bg-primary/20 text-primary inline-block px-2 py-0.5 rounded border border-primary/30">
                     2D - Standard
                   </p>
@@ -59,7 +59,7 @@ function BookingSuccessContent() {
                   <div className="flex items-center gap-3">
                     <MapPin className="w-5 h-5 text-white" />
                     <div>
-                      <p className="font-bold text-white">ClGV Cinemas</p>
+                      <p className="font-bold text-white">TrueTix Cinemas</p>
                       <p>Screen 1</p>
                     </div>
                   </div>

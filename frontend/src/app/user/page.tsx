@@ -24,12 +24,12 @@ export default function UserProfilePage() {
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-1">
-          {/* CGV Card */}
+          {/* TrueTix Card */}
           <div className="bg-gradient-to-br from-zinc-800 to-black rounded-xl p-6 shadow-xl border border-zinc-700 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl"></div>
             <div className="relative z-10">
               <div className="flex justify-between items-center mb-6">
-                <span className="text-primary font-bold text-xl">ClGV CARD</span>
+                <span className="text-primary font-bold text-xl">TrueTix CARD</span>
                 <span className="text-zinc-400 text-sm tracking-widest">{user.membershipTier || 'MEMBER'}</span>
               </div>
               
@@ -46,7 +46,7 @@ export default function UserProfilePage() {
                 <div className="text-right">
                   <p className="text-sm text-zinc-400">Card Balance</p>
                   <p className="font-bold text-lg text-white">
-                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(user.cgvCardBalance || 0)}
+                    {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(user.truetixCardBalance || 0)}
                   </p>
                 </div>
               </div>

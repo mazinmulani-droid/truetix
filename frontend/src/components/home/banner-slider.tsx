@@ -19,7 +19,7 @@ export function BannerSlider({ banners }: { banners: any[] }) {
   if (!banners || banners.length === 0) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-zinc-900">
-        <h2 className="text-3xl font-bold text-primary">ClGV Offers</h2>
+        <h2 className="text-3xl font-bold text-primary">TrueTix Offers</h2>
       </div>
     );
   }
@@ -47,7 +47,7 @@ export function BannerSlider({ banners }: { banners: any[] }) {
                 {banner.title}
               </h2>
               <p className="text-lg text-white/80 line-clamp-2 drop-shadow-md">
-                Discover the ultimate cinema experience. Book tickets today to enjoy exclusive offers across all ClGV cinemas!
+                Discover the ultimate cinema experience. Book tickets today to enjoy exclusive offers across all TrueTix cinemas!
               </p>
               <div>
                 <Link 

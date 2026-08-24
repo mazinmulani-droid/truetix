@@ -8,7 +8,7 @@ export interface User {
   role: 'CUSTOMER' | 'ADMIN' | 'SCANNER';
   membershipTier?: 'MEMBER' | 'U22_FANC' | 'VIP' | 'VVIP';
   points?: number;
-  cgvCardBalance?: number;
+  truetixCardBalance?: number;
 }
 
 interface AuthState {
@@ -45,7 +45,7 @@ export const useAuthStore = create<AuthState>()(
       setHasHydrated: (state) => set({ _hasHydrated: state }),
     }),
     {
-      name: 'clgv-auth-storage',
+      name: 'truetix-auth-storage',
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
       }

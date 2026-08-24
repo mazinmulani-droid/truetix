@@ -56,7 +56,7 @@ export default function RegisterPage() {
         role: 'CUSTOMER' as any,
         membershipTier: 'MEMBER' as any,
         points: 100,
-        cgvCardBalance: 0,
+        truetixCardBalance: 0,
       };
       setAuth(mockUser, 'mock_access_token_' + Date.now(), 'mock_refresh_token_' + Date.now());
       toast.success(`Account created! Welcome to TrueTix, ${mockUser.fullName}.`);
@@ -98,7 +98,7 @@ export default function RegisterPage() {
         role: 'CUSTOMER' as any,
         membershipTier: 'MEMBER' as any,
         points: 200,
-        cgvCardBalance: 0,
+        truetixCardBalance: 0,
       };
       setAuth(mockUser, 'mock_access_token_' + Date.now(), 'mock_refresh_token_' + Date.now());
       toast.success(`Signed up with Google! Welcome, ${mockUser.fullName}.`);
