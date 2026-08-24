@@ -40,7 +40,7 @@ export default function CinemaListClient({ initialCinemas }: { initialCinemas: a
     }
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const { latitude, longitude } = position.coords;
         setUserLoc({ lat: latitude, lng: longitude });
         
@@ -55,37 +55,46 @@ export default function CinemaListClient({ initialCinemas }: { initialCinemas: a
           }
         });
 
-        // If user is more than 50km away from our base cinemas, dynamically generate some local ones!
+        // If user is more than 50km away, fetch their real city and inject realistic cinemas!
         if (minDistance > 50) {
-          allCinemas.push(
-            {
-              id: "cin_dyn_1",
-              name: "TrueTix Central (Local)",
-              address: "City Center Mall, Main Avenue",
-              city: "Your City",
-              hotline: "1800 555 0100",
-              lat: latitude + 0.015,
-              lng: longitude + 0.012
-            },
-            {
-              id: "cin_dyn_2",
-              name: "TrueTix Starlight (Local)",
-              address: "Entertainment Zone, West District",
-              city: "Your City",
-              hotline: "1800 555 0101",
-              lat: latitude - 0.02,
-              lng: longitude - 0.01
-            },
-            {
-              id: "cin_dyn_3",
-              name: "TrueTix Grand (Local)",
-              address: "Grand Plaza, Tech Park",
-              city: "Your City",
-              hotline: "1800 555 0102",
-              lat: latitude + 0.005,
-              lng: longitude - 0.025
-            }
-          );
+          try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+            const data = await res.json();
+            const cityName = data.address?.city || data.address?.town || data.address?.county || "Your City";
+            const stateName = data.address?.state || "";
+
+            allCinemas.push(
+              {
+                id: "cin_dyn_1",
+                name: `TrueTix ${cityName} Mall`,
+                address: `Main Avenue, ${cityName}, ${stateName}`,
+                city: cityName,
+                hotline: "1800 555 0100",
+                lat: latitude + 0.015,
+                lng: longitude + 0.012
+              },
+              {
+                id: "cin_dyn_2",
+                name: `TrueTix Central ${cityName}`,
+                address: `Entertainment Zone, ${cityName}, ${stateName}`,
+                city: cityName,
+                hotline: "1800 555 0101",
+                lat: latitude - 0.02,
+                lng: longitude - 0.01
+              },
+              {
+                id: "cin_dyn_3",
+                name: `TrueTix Grand ${cityName}`,
+                address: `Grand Plaza, ${cityName}, ${stateName}`,
+                city: cityName,
+                hotline: "1800 555 0102",
+                lat: latitude + 0.005,
+                lng: longitude - 0.025
+              }
+            );
+          } catch (e) {
+            console.error("Failed to reverse geocode:", e);
+          }
         }
 
         // Calculate distance and sort
