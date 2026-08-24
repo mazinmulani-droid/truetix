@@ -55,45 +55,57 @@ export default function CinemaListClient({ initialCinemas }: { initialCinemas: a
           }
         });
 
-        // If user is more than 50km away, fetch their real city and inject realistic cinemas!
+        // If user is more than 50km away, fetch REAL cinemas nearby using Overpass API
         if (minDistance > 50) {
           try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-            const data = await res.json();
-            const cityName = data.address?.city || data.address?.town || data.address?.county || "Your City";
-            const stateName = data.address?.state || "";
-
-            allCinemas.push(
-              {
+            // First, get city name via Nominatim for address building
+            const nomRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+            const nomData = await nomRes.json();
+            const cityName = nomData.address?.city || nomData.address?.town || nomData.address?.county || "Your City";
+            
+            // Then, fetch REAL cinemas within 50km radius using Overpass API (fast lz4 endpoint)
+            const overpassQuery = `[out:json][timeout:15];(node["amenity"="cinema"](around:50000,${latitude},${longitude});way["amenity"="cinema"](around:50000,${latitude},${longitude}););out center 10;`;
+            
+            const overpassRes = await fetch('https://lz4.overpass-api.de/api/interpreter', {
+              method: 'POST',
+              body: overpassQuery
+            });
+            const overpassData = await overpassRes.json();
+            
+            if (overpassData && overpassData.elements && overpassData.elements.length > 0) {
+              const realCinemas = overpassData.elements.map((el: any, idx: number) => {
+                const cinemaName = el.tags?.name || 'Local Cinema';
+                const lat = el.lat || el.center?.lat;
+                const lon = el.lon || el.center?.lon;
+                
+                return {
+                  id: `cin_real_${el.id || idx}`,
+                  name: `TrueTix Partner: ${cinemaName}`,
+                  address: el.tags?.['addr:street'] 
+                    ? `${el.tags['addr:street']}, ${cityName}` 
+                    : `Near ${cityName} center`,
+                  city: cityName,
+                  hotline: el.tags?.phone || "1800 555 0100",
+                  lat: lat,
+                  lng: lon
+                };
+              });
+              
+              allCinemas = [...allCinemas, ...realCinemas];
+            } else {
+              // Fallback if Overpass finds 0 real cinemas in a 50km radius
+              allCinemas.push({
                 id: "cin_dyn_1",
-                name: `TrueTix ${cityName} Mall`,
-                address: `Main Avenue, ${cityName}, ${stateName}`,
+                name: `TrueTix Central ${cityName}`,
+                address: `Main Avenue, ${cityName}`,
                 city: cityName,
                 hotline: "1800 555 0100",
                 lat: latitude + 0.015,
                 lng: longitude + 0.012
-              },
-              {
-                id: "cin_dyn_2",
-                name: `TrueTix Central ${cityName}`,
-                address: `Entertainment Zone, ${cityName}, ${stateName}`,
-                city: cityName,
-                hotline: "1800 555 0101",
-                lat: latitude - 0.02,
-                lng: longitude - 0.01
-              },
-              {
-                id: "cin_dyn_3",
-                name: `TrueTix Grand ${cityName}`,
-                address: `Grand Plaza, ${cityName}, ${stateName}`,
-                city: cityName,
-                hotline: "1800 555 0102",
-                lat: latitude + 0.005,
-                lng: longitude - 0.025
-              }
-            );
+              });
+            }
           } catch (e) {
-            console.error("Failed to reverse geocode:", e);
+            console.error("Failed to fetch real cinemas:", e);
           }
         }
 
