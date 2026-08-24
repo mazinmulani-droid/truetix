@@ -67,45 +67,60 @@ export default function RegisterPage() {
   };
 
   const handleGoogleRegister = async () => {
-    try {
-      setLoading(true);
-      const mockOAuthEmail = formData.email || `user_${Math.random().toString(36).substring(2, 7)}@gmail.com`;
-      const mockFullName = formData.fullName || mockOAuthEmail.split('@')[0].replace(/[^a-zA-Z]/g, ' ') || 'Google User';
+    // Open Google Sign-In popup simulation
+    const width = 500;
+    const height = 650;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    const popup = window.open('https://accounts.google.com/signin/v2/identifier?flowName=GlifWebSignIn&flowEntry=ServiceLogin', 'Google Sign-In', `width=${width},height=${height},left=${left},top=${top}`);
 
+    setLoading(true);
+
+    // Simulate waiting for OAuth redirect / user approval
+    setTimeout(async () => {
+      if (popup && !popup.closed) {
+        popup.close();
+      }
+      
       try {
-        const res: any = await api.post('/auth/oauth/google', {
+        const mockOAuthEmail = formData.email || `user_${Math.random().toString(36).substring(2, 7)}@gmail.com`;
+        const mockFullName = formData.fullName || mockOAuthEmail.split('@')[0].replace(/[^a-zA-Z]/g, ' ') || 'Google User';
+
+        try {
+          const res: any = await api.post('/auth/oauth/google', {
+            email: mockOAuthEmail,
+            fullName: mockFullName,
+            provider: 'GOOGLE',
+            googleId: `google_${Date.now()}`
+          });
+
+          if (res.success && res.data) {
+            const { user, accessToken, refreshToken } = res.data;
+            setAuth(user, accessToken, refreshToken);
+            toast.success(`Welcome to TrueTix, ${user.fullName}!`);
+            router.push('/');
+            return;
+          }
+        } catch (err) {
+          // Fallback for standalone demo mode
+        }
+
+        const mockUser = {
+          id: 'usr_g_' + Math.random().toString(36).substring(2, 8),
           email: mockOAuthEmail,
           fullName: mockFullName,
-          provider: 'GOOGLE',
-          googleId: `google_${Date.now()}`
-        });
-
-        if (res.success && res.data) {
-          const { user, accessToken, refreshToken } = res.data;
-          setAuth(user, accessToken, refreshToken);
-          toast.success(`Welcome to TrueTix, ${user.fullName}!`);
-          router.push('/');
-          return;
-        }
-      } catch (err) {
-        // Fallback for standalone demo mode
+          role: 'CUSTOMER' as any,
+          membershipTier: 'MEMBER' as any,
+          points: 200,
+          truetixCardBalance: 0,
+        };
+        setAuth(mockUser, 'mock_access_token_' + Date.now(), 'mock_refresh_token_' + Date.now());
+        toast.success(`Signed up with Google! Welcome, ${mockUser.fullName}.`);
+        router.push('/');
+      } finally {
+        setLoading(false);
       }
-
-      const mockUser = {
-        id: 'usr_g_' + Math.random().toString(36).substring(2, 8),
-        email: mockOAuthEmail,
-        fullName: mockFullName,
-        role: 'CUSTOMER' as any,
-        membershipTier: 'MEMBER' as any,
-        points: 200,
-        truetixCardBalance: 0,
-      };
-      setAuth(mockUser, 'mock_access_token_' + Date.now(), 'mock_refresh_token_' + Date.now());
-      toast.success(`Signed up with Google! Welcome, ${mockUser.fullName}.`);
-      router.push('/');
-    } finally {
-      setLoading(false);
-    }
+    }, 2500); // Wait 2.5 seconds to simulate the user logging in on the Google popup
   };
 
   return (
