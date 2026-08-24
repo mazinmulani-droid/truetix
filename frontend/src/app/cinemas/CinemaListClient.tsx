@@ -56,64 +56,77 @@ export default function CinemaListClient({ initialCinemas }: { initialCinemas: a
         });
 
         if (minDistance > 50) {
+          let cityName = "Your City";
           try {
             const nomRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-            const nomData = await nomRes.json();
-            const cityName = nomData.address?.city || nomData.address?.town || nomData.address?.county || "Your City";
-            
-            const overpassQuery = `[out:json][timeout:15];(node["amenity"="cinema"](around:50000,${latitude},${longitude});way["amenity"="cinema"](around:50000,${latitude},${longitude}););out center 10;`;
+            if (nomRes.ok) {
+              const nomData = await nomRes.json();
+              cityName = nomData.address?.city || nomData.address?.town || nomData.address?.county || "Your City";
+            }
+          } catch (e) {
+            console.error("Nominatim fetch failed:", e);
+          }
+
+          let foundRealCinemas = false;
+          try {
+            const overpassQuery = `[out:json][timeout:10];(node["amenity"="cinema"](around:50000,${latitude},${longitude});way["amenity"="cinema"](around:50000,${latitude},${longitude}););out center 5;`;
             
             const overpassRes = await fetch('https://lz4.overpass-api.de/api/interpreter', {
               method: 'POST',
               body: overpassQuery
             });
-            const overpassData = await overpassRes.json();
             
-            if (overpassData && overpassData.elements && overpassData.elements.length > 0) {
-              const realCinemas = overpassData.elements.map((el: any, idx: number) => {
-                const cinemaName = el.tags?.name || 'Local Cinema';
-                const lat = el.lat || el.center?.lat;
-                const lon = el.lon || el.center?.lon;
-                
-                return {
-                  id: `cin_real_${el.id || idx}`,
-                  name: `TrueTix Partner: ${cinemaName}`,
-                  address: el.tags?.['addr:street'] 
-                    ? `${el.tags['addr:street']}, ${cityName}` 
-                    : `Near ${cityName} center`,
-                  city: cityName,
-                  hotline: el.tags?.phone || "1800 555 0100",
-                  lat: lat,
-                  lng: lon
-                };
-              });
-              
-              allCinemas = [...allCinemas, ...realCinemas];
-            } else {
-              // Add hyper-realistic mock cinemas tailored to the user's city if OSM finds nothing
-              allCinemas.push(
-                {
-                  id: "cin_dyn_1",
-                  name: `Cinépolis ${cityName} Mall`,
-                  address: `Main Avenue, ${cityName}`,
-                  city: cityName,
-                  hotline: "1800 555 0100",
-                  lat: latitude + 0.015,
-                  lng: longitude + 0.012
-                },
-                {
-                  id: "cin_dyn_2",
-                  name: `Carnival Cinemas ${cityName}`,
-                  address: `Entertainment Zone, ${cityName}`,
-                  city: cityName,
-                  hotline: "1800 555 0101",
-                  lat: latitude - 0.02,
-                  lng: longitude - 0.01
-                }
-              );
+            // Only try to parse JSON if the response is actually JSON and successful
+            if (overpassRes.ok && overpassRes.headers.get("content-type")?.includes("application/json")) {
+              const overpassData = await overpassRes.json();
+              if (overpassData && overpassData.elements && overpassData.elements.length > 0) {
+                const realCinemas = overpassData.elements.map((el: any, idx: number) => {
+                  const cinemaName = el.tags?.name || 'Local Cinema';
+                  const lat = el.lat || el.center?.lat;
+                  const lon = el.lon || el.center?.lon;
+                  
+                  return {
+                    id: `cin_real_${el.id || idx}`,
+                    name: `TrueTix Partner: ${cinemaName}`,
+                    address: el.tags?.['addr:street'] 
+                      ? `${el.tags['addr:street']}, ${cityName}` 
+                      : `Near ${cityName} center`,
+                    city: cityName,
+                    hotline: el.tags?.phone || "1800 555 0100",
+                    lat: lat,
+                    lng: lon
+                  };
+                });
+                allCinemas = [...allCinemas, ...realCinemas];
+                foundRealCinemas = true;
+              }
             }
           } catch (e) {
-            console.error("Failed to fetch real cinemas:", e);
+            console.warn("Overpass API failed, using fallback mock cinemas.", e);
+          }
+
+          // If Overpass failed or found 0 cinemas, use the ultra-realistic fallback
+          if (!foundRealCinemas) {
+            allCinemas.push(
+              {
+                id: "cin_dyn_1",
+                name: `Cinépolis ${cityName} Mall`,
+                address: `Main Avenue, ${cityName}`,
+                city: cityName,
+                hotline: "1800 555 0100",
+                lat: latitude + 0.015,
+                lng: longitude + 0.012
+              },
+              {
+                id: "cin_dyn_2",
+                name: `Carnival Cinemas ${cityName}`,
+                address: `Entertainment Zone, ${cityName}`,
+                city: cityName,
+                hotline: "1800 555 0101",
+                lat: latitude - 0.02,
+                lng: longitude - 0.01
+              }
+            );
           }
         }
 
