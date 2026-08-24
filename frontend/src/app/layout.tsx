@@ -33,7 +33,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en-GB" className={`${geistSans.variable} ${geistMono.variable} ${oswald.variable} ${oswald.className} h-full antialiased dark`}>
+    <html lang="en-GB" className={`${geistSans.variable} ${geistMono.variable} ${oswald.variable} ${oswald.className} h-full antialiased dark`} suppressHydrationWarning>
       <body className="min-h-full flex flex-col relative bg-black text-foreground">
         {/* Global Ambient Lights */}
         <div className="fixed top-[-10%] right-[-5%] w-[500px] h-[500px] bg-primary/10 rounded-full blur-[150px] pointer-events-none z-0" />

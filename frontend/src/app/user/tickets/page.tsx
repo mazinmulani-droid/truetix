@@ -9,8 +9,6 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar, Clock, MapPin, Download } from 'lucide-react';
 import { format } from 'date-fns';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 
 export default function MyTicketsPage() {
   const { isAuthenticated } = useAuthStore();
@@ -60,10 +58,35 @@ export default function MyTicketsPage() {
 
   const downloadPDF = async () => {
     const ticketElement = document.getElementById('pdf-ticket-template');
-    if (!ticketElement || !selectedTicket) return;
+    if (!ticketElement || !selectedTicket) {
+      console.error('Element or ticket missing');
+      return;
+    }
 
     try {
-      const canvas = await html2canvas(ticketElement, { scale: 3, useCORS: true });
+      // Use dynamic imports to prevent SSR/Hydration issues
+      const html2canvas = (await import('html2canvas')).default;
+      const jsPDF = (await import('jspdf')).default;
+
+      // Temporarily make it visible for html2canvas to capture it accurately
+      ticketElement.style.opacity = '1';
+      ticketElement.style.position = 'absolute';
+      ticketElement.style.left = '0px';
+      ticketElement.style.top = '0px';
+      ticketElement.style.zIndex = '-50';
+      
+      const canvas = await html2canvas(ticketElement, { 
+        scale: 2, 
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false
+      });
+      
+      // Restore hidden state
+      ticketElement.style.opacity = '0';
+      ticketElement.style.left = '-9999px';
+      ticketElement.style.top = '-9999px';
+
       const imgData = canvas.toDataURL('image/png');
       
       const pdf = new jsPDF({
@@ -73,9 +96,10 @@ export default function MyTicketsPage() {
       });
       
       pdf.addImage(imgData, 'PNG', 0, 0, 210, 100);
-      pdf.save(`TrueTix_${selectedTicket.movieTitle.replace(/\s+/g, '_')}_Ticket.pdf`);
+      pdf.save(`TrueTix_${selectedTicket.movieTitle.replace(/[^a-zA-Z0-9]/g, '_')}_Ticket.pdf`);
     } catch (error) {
-      console.error('Error generating PDF', error);
+      console.error('Error generating PDF:', error);
+      alert("Failed to generate PDF. Check console for details.");
     }
   };
 
