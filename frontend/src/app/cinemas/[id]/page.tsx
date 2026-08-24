@@ -79,9 +79,32 @@ async function getCinema(id: string) {
   }
 }
 
-export default async function CinemaDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CinemaDetailPage({ 
+  params,
+  searchParams
+}: { 
+  params: Promise<{ id: string }>,
+  searchParams: Promise<{ name?: string, address?: string }>
+}) {
   const { id } = await params;
-  const cinema = await getCinema(id);
+  const { name, address } = await searchParams;
+  let cinema = await getCinema(id);
+
+  if (!cinema && (id.startsWith('cin_dyn_') || id.startsWith('cin_real_'))) {
+    cinema = {
+      id: id,
+      name: name || "TrueTix Partner Cinema",
+      address: address || "Local City Center",
+      city: "Local",
+      hotline: "1800 555 0100",
+      amenities: ["IMAX", "Free Parking", "Popcorn Stand"],
+      halls: [
+        { id: "hall_1", name: "Screen 1", screenType: "IMAX" },
+        { id: "hall_2", name: "Screen 2", screenType: "2D" },
+        { id: "hall_3", name: "Screen 3", screenType: "3D" }
+      ]
+    };
+  }
 
   if (!cinema) {
     notFound();
