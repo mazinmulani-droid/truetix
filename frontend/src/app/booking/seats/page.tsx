@@ -322,13 +322,12 @@ function SeatsContent() {
                     const isSelected = !!selectedSeats.find(s => s.id === currentSeat.id);
                     const currentUserId = user?.id || sessionId;
                     const isHeldByOther = currentSeat.status === 'HOLDING' && !isSelected && currentSeat.heldByUserId && currentSeat.heldByUserId !== currentUserId;
-                    
-                    let bgClass = "bg-zinc-800 text-gray-300 border-zinc-700 hover:border-primary hover:text-white cursor-pointer"; // AVAILABLE STANDARD
+                                  let bgClass = "bg-zinc-800 text-gray-300 border-zinc-700 hover:border-primary hover:text-white cursor-pointer"; // AVAILABLE STANDARD
                     if (currentSeat.type === 'VIP') bgClass = "bg-amber-950/40 border-amber-500/50 text-amber-300 hover:bg-amber-500/30 cursor-pointer";
                     if (currentSeat.type === 'COUPLE') bgClass = "bg-pink-950/40 border-pink-500/50 text-pink-300 hover:bg-pink-500/30 cursor-pointer";
                     
                     if (currentSeat.status === 'SOLD') bgClass = "bg-zinc-950 text-zinc-600 border-zinc-900 cursor-not-allowed opacity-50 hover:border-destructive/60 hover:text-destructive";
-                    if (isHeldByOther) bgClass = "bg-yellow-950/70 text-yellow-400 border-yellow-500/80 cursor-not-allowed shadow-[0_0_12px_rgba(234,179,8,0.5)] animate-pulse";
+                    if (isHeldByOther) bgClass = "bg-amber-500 text-zinc-950 border-2 border-amber-300 font-black cursor-not-allowed shadow-[0_0_20px_rgba(245,158,11,0.9)] scale-105 z-10 transition-transform animate-pulse";
                     if (currentSeat.status === 'BLOCKED') bgClass = "bg-black text-transparent cursor-not-allowed border-none opacity-20";
                     
                     if (isSelected) bgClass = "bg-primary text-white shadow-[0_0_15px_rgba(225,29,72,0.8)] border-primary scale-110 z-10 transition-transform font-bold cursor-pointer";
@@ -349,7 +348,10 @@ function SeatsContent() {
                         ) : currentSeat.status === 'SOLD' ? (
                           <span className="text-[10px] font-bold text-zinc-600 line-through">✕ {currentSeat.id}</span>
                         ) : isHeldByOther ? (
-                          <span className="text-[10px] font-bold text-yellow-400 flex items-center gap-0.5"><Lock className="w-3 h-3" /> {currentSeat.id}</span>
+                          <span className="text-[11px] font-black text-zinc-950 flex items-center justify-center gap-1">
+                            <Lock className="w-3.5 h-3.5 text-zinc-950 stroke-[3]" />
+                            {currentSeat.id}
+                          </span>
                         ) : (
                           currentSeat.id
                         )}
@@ -380,8 +382,11 @@ function SeatsContent() {
           <div className="flex items-center gap-2 text-xs md:text-sm text-primary font-bold">
             <div className="w-5 h-5 bg-primary border border-primary rounded-t-lg shadow-[0_0_8px_rgba(225,29,72,0.8)]" /> Selected
           </div>
-          <div className="flex items-center gap-2 text-xs md:text-sm text-yellow-400 font-medium">
-            <div className="w-5 h-5 bg-yellow-950/70 border border-yellow-500/80 rounded-t-lg flex items-center justify-center text-[9px]">🔒</div> Holding (10m)
+          <div className="flex items-center gap-2 text-xs md:text-sm text-amber-300 font-bold">
+            <div className="w-6 h-6 bg-amber-500 text-zinc-950 border-2 border-amber-300 rounded-t-lg flex items-center justify-center text-[10px] font-black shadow-[0_0_12px_rgba(245,158,11,0.8)]">
+              <Lock className="w-3.5 h-3.5 stroke-[3]" />
+            </div>
+            Locked / Held (10m)
           </div>
           <div className="flex items-center gap-2 text-xs md:text-sm text-zinc-500">
             <div className="w-5 h-5 bg-zinc-950 border border-zinc-800 rounded-t-lg opacity-50 flex items-center justify-center text-[10px] text-zinc-600">✕</div> Sold
