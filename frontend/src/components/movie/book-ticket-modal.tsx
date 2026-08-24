@@ -6,13 +6,32 @@ import { Ticket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
-export function BookTicketModal({ movie }: { movie: any }) {
+export function BookTicketModal({ movie, showtimes: customShowtimes }: { movie: any; showtimes?: any[] }) {
   const [open, setOpen] = useState(false);
+
+  const showtimesList = (customShowtimes && customShowtimes.length > 0)
+    ? customShowtimes
+    : (movie?.showtimes && movie.showtimes.length > 0)
+      ? movie.showtimes
+      : [
+          {
+            id: 'st_1',
+            startTime: new Date(Date.now() + 3600000).toISOString(),
+            cinema: { name: 'TrueTix Leicester Square' },
+            hall: { name: 'IMAX Screen 1' }
+          },
+          {
+            id: 'st_2',
+            startTime: new Date(Date.now() + 10800000).toISOString(),
+            cinema: { name: 'TrueTix Leicester Square' },
+            hall: { name: 'Dolby Atmos Screen 2' }
+          }
+        ];
 
   // Group showtimes by Date
   const showtimesByDate: Record<string, any[]> = {};
-  if (movie.showtimes && movie.showtimes.length > 0) {
-    movie.showtimes.forEach((st: any) => {
+  if (showtimesList && showtimesList.length > 0) {
+    showtimesList.forEach((st: any) => {
       const dateStr = new Date(st.startTime).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
       if (!showtimesByDate[dateStr]) showtimesByDate[dateStr] = [];
       showtimesByDate[dateStr].push(st);

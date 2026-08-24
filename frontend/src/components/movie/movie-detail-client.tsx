@@ -115,7 +115,7 @@ export function MovieDetailClient({ id, initialMovie }: MovieDetailClientProps) 
                 </span>
               </div>
               <div className="pt-2">
-                <BookTicketModal movie={movie} />
+                <BookTicketModal movie={movie} showtimes={showtimes} />
               </div>
             </div>
           </div>

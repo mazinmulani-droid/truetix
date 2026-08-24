@@ -123,7 +123,6 @@ export class AuthService {
           email: dto.email,
           fullName: dto.fullName || dto.email.split('@')[0],
           password: randomPassword,
-          avatar: dto.avatar || null,
         },
       });
     }

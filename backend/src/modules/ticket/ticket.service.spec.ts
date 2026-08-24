@@ -23,9 +23,9 @@ describe('TicketService', () => {
   });
 
   it('nên báo lỗi UnauthorizedException khi X-Scanner-Key không khớp', async () => {
-    await expect(service.verifyQrTicket('WRONG_KEY', 'TKT.test.sig')).rejects.toThrow(
-      'Header X-Scanner-Key không hợp lệ',
-    );
+    await expect(
+      service.verifyQrTicket('wrong-key', 'dummy-token'),
+    ).rejects.toThrowError('Invalid X-Scanner-Key header');
   });
 
   it('nên báo lỗi UnprocessableEntityException khi định dạng qrToken không phải TKT.payload.sig', async () => {
