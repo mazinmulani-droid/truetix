@@ -25,11 +25,22 @@ function MapUpdater({ center, cinemas, userLoc }: { center: [number, number], ci
   useEffect(() => {
     if (userLoc && cinemas.length > 0) {
       const bounds = L.latLngBounds([[userLoc.lat, userLoc.lng]]);
-      // Add up to 3 closest cinemas to bounds
-      cinemas.slice(0, 3).forEach(c => {
-        if (c.lat && c.lng) bounds.extend([c.lat, c.lng]);
+      
+      // Only include cinemas that are actually nearby (within 100km) in the auto-zoom bounds
+      let addedToBounds = false;
+      cinemas.forEach(c => {
+        if (c.lat && c.lng && c.distance !== undefined && c.distance < 100) {
+          bounds.extend([c.lat, c.lng]);
+          addedToBounds = true;
+        }
       });
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+      
+      // If we found local cinemas, fit bounds. Otherwise, just center on user with zoom 13
+      if (addedToBounds) {
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+      } else {
+        map.setView([userLoc.lat, userLoc.lng], 13);
+      }
     } else {
       map.setView(center, 11);
     }
