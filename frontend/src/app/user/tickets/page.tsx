@@ -214,51 +214,51 @@ export default function MyTicketsPage() {
       {/* Hidden PDF Template for html2canvas */}
       <div className="absolute left-[-9999px] top-[-9999px]">
         {selectedTicket && (
-          <div id="pdf-ticket-template" className="w-[800px] h-[380px] bg-white text-black p-8 font-sans relative flex border border-gray-200">
+          <div id="pdf-ticket-template" className="w-[800px] h-[380px] p-8 font-sans relative flex border" style={{ backgroundColor: '#ffffff', color: '#000000', borderColor: '#e5e7eb' }}>
             {/* Left side (Details) */}
-            <div className="flex-1 pr-8 border-r-2 border-dashed border-gray-300">
-              <div className="border-b-4 border-red-600 pb-4 mb-4 flex justify-between items-center">
+            <div className="flex-1 pr-8 border-r-2 border-dashed" style={{ borderColor: '#d1d5db' }}>
+              <div className="border-b-4 pb-4 mb-4 flex justify-between items-center" style={{ borderColor: '#dc2626' }}>
                 <div>
-                  <h1 className="text-4xl font-black tracking-tight text-red-600 uppercase">TrueTix</h1>
-                  <p className="text-gray-500 font-bold uppercase tracking-widest text-xs mt-1">Official E-Ticket</p>
+                  <h1 className="text-4xl font-black tracking-tight uppercase" style={{ color: '#dc2626' }}>TrueTix</h1>
+                  <p className="font-bold uppercase tracking-widest text-xs mt-1" style={{ color: '#6b7280' }}>Official E-Ticket</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-mono text-[10px] text-gray-500 uppercase">Booking Ref</p>
-                  <p className="font-bold text-sm">{selectedTicket.id}</p>
+                  <p className="font-mono text-[10px] uppercase" style={{ color: '#6b7280' }}>Booking Ref</p>
+                  <p className="font-bold text-sm" style={{ color: '#000000' }}>{selectedTicket.id}</p>
                 </div>
               </div>
               
               <div className="space-y-4">
                 <div>
-                  <p className="text-gray-500 text-[10px] font-bold uppercase">Movie Title</p>
-                  <h2 className="text-2xl font-black uppercase leading-none mt-1 text-black">{selectedTicket.movieTitle}</h2>
+                  <p className="text-[10px] font-bold uppercase" style={{ color: '#6b7280' }}>Movie Title</p>
+                  <h2 className="text-2xl font-black uppercase leading-none mt-1" style={{ color: '#000000' }}>{selectedTicket.movieTitle}</h2>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-gray-500 text-[10px] font-bold uppercase">Date & Time</p>
-                    <p className="text-lg font-bold text-black">
+                    <p className="text-[10px] font-bold uppercase" style={{ color: '#6b7280' }}>Date & Time</p>
+                    <p className="text-lg font-bold" style={{ color: '#000000' }}>
                       {selectedTicket.showDate ? format(new Date(selectedTicket.showDate), 'dd MMM yyyy') : 'N/A'}
                     </p>
-                    <p className="text-sm font-bold text-gray-700">{selectedTicket.startTime} - {selectedTicket.endTime}</p>
+                    <p className="text-sm font-bold" style={{ color: '#374151' }}>{selectedTicket.startTime} - {selectedTicket.endTime}</p>
                   </div>
                   <div>
-                    <p className="text-gray-500 text-[10px] font-bold uppercase">Cinema Location</p>
-                    <p className="text-base font-bold text-black leading-tight">{selectedTicket.cinemaName}</p>
-                    <p className="text-sm font-medium text-gray-600">{selectedTicket.screenName}</p>
+                    <p className="text-[10px] font-bold uppercase" style={{ color: '#6b7280' }}>Cinema Location</p>
+                    <p className="text-base font-bold leading-tight" style={{ color: '#000000' }}>{selectedTicket.cinemaName}</p>
+                    <p className="text-sm font-medium" style={{ color: '#4b5563' }}>{selectedTicket.screenName}</p>
                   </div>
                 </div>
               </div>
             </div>
             
             {/* Right side (Stub + QR) */}
-            <div className="w-[240px] pl-8 flex flex-col justify-between items-center bg-gray-50 -my-8 -mr-8 p-8 border-l border-gray-200">
+            <div className="w-[240px] pl-8 flex flex-col justify-between items-center -my-8 -mr-8 p-8 border-l" style={{ backgroundColor: '#f9fafb', borderColor: '#e5e7eb' }}>
               <div className="text-center w-full">
-                <p className="text-gray-500 text-[10px] font-bold uppercase">Admit</p>
-                <p className="text-3xl font-black text-red-600 leading-none mt-1">{selectedTicket.seats?.join(', ')}</p>
+                <p className="text-[10px] font-bold uppercase" style={{ color: '#6b7280' }}>Admit</p>
+                <p className="text-3xl font-black leading-none mt-1" style={{ color: '#dc2626' }}>{selectedTicket.seats?.join(', ')}</p>
               </div>
               
-              <div className="w-40 h-40 bg-white p-2 border-2 border-dashed border-gray-300 rounded-xl my-4 flex items-center justify-center">
+              <div className="w-40 h-40 p-2 border-2 border-dashed rounded-xl my-4 flex items-center justify-center" style={{ backgroundColor: '#ffffff', borderColor: '#d1d5db' }}>
                 <QRCodeCanvas 
                   value={selectedTicket.qrCodeData || selectedTicket.id} 
                   size={140}
@@ -268,7 +268,7 @@ export default function MyTicketsPage() {
               </div>
               
               <div className="text-center">
-                <p className="text-[9px] font-bold text-gray-400 tracking-widest uppercase">Scan at Entrance</p>
+                <p className="text-[9px] font-bold tracking-widest uppercase" style={{ color: '#9ca3af' }}>Scan at Entrance</p>
               </div>
             </div>
           </div>
