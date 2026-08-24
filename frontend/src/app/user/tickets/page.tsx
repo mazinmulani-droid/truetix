@@ -5,7 +5,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { api } from '@/lib/axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { QRCodeSVG } from 'qrcode.react';
+import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar, Clock, MapPin, Download } from 'lucide-react';
 import { format } from 'date-fns';
@@ -80,17 +80,13 @@ export default function MyTicketsPage() {
       
       const canvas = await html2canvas(ticketElement, { 
         scale: 2, 
-        useCORS: true,
         backgroundColor: '#ffffff',
-        logging: false
+        logging: true,
+        allowTaint: true,
+        useCORS: true
       });
       
-      // Restore hidden state
-      ticketElement.style.opacity = '0';
-      ticketElement.style.left = '-9999px';
-      ticketElement.style.top = '-9999px';
-
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
       
       const pdf = new jsPDF({
         orientation: 'landscape',
@@ -98,11 +94,18 @@ export default function MyTicketsPage() {
         format: [210, 100] // Custom wide ticket size
       });
       
-      pdf.addImage(imgData, 'PNG', 0, 0, 210, 100);
+      pdf.addImage(imgData, 'JPEG', 0, 0, 210, 100);
       pdf.save(`TrueTix_${selectedTicket.movieTitle.replace(/[^a-zA-Z0-9]/g, '_')}_Ticket.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert("Failed to generate PDF. Check console for details.");
+      alert(`Failed to generate PDF: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      // Restore hidden state
+      if (ticketElement) {
+        ticketElement.style.opacity = '0';
+        ticketElement.style.left = '-9999px';
+        ticketElement.style.top = '-9999px';
+      }
     }
   };
 
@@ -256,7 +259,7 @@ export default function MyTicketsPage() {
               </div>
               
               <div className="w-40 h-40 bg-white p-2 border-2 border-dashed border-gray-300 rounded-xl my-4 flex items-center justify-center">
-                <QRCodeSVG 
+                <QRCodeCanvas 
                   value={selectedTicket.qrCodeData || selectedTicket.id} 
                   size={140}
                   level="Q"
