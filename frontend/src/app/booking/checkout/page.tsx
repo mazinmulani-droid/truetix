@@ -44,7 +44,8 @@ export default function CheckoutPage() {
   const [paymentQr, setPaymentQr] = useState<string | null>(null);
   const [bookingId, setBookingId] = useState<string | null>(null);
   const [showUpiModal, setShowUpiModal] = useState(false);
-  const upiId = process.env.NEXT_PUBLIC_UPI_ID || "7798991206@ybl";
+  const upiId = process.env.NEXT_PUBLIC_UPI_ID || "9996476046@ptyes";
+  const upiName = "Muaaj Rafik Mulani";
   
   useEffect(() => {
     if (selectedSeats.length === 0) {
@@ -347,7 +348,7 @@ export default function CheckoutPage() {
             
             <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-200 mb-4">
               <img 
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`upi://pay?pa=${upiId}&pn=TrueTix&mc=0000&mode=02&purpose=00&am=3.00&cu=INR`)}`} 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&mc=0000&mode=02&purpose=00&am=3.00&cu=INR`)}`} 
                 alt="UPI QR Code" 
                 className="w-48 h-48"
               />
