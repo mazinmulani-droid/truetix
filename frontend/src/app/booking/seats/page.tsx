@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/axios';
 import { toast } from 'sonner';
-import { Clock, Monitor, ChevronRight, Armchair, Sparkles } from 'lucide-react';
+import { Clock, Monitor, ChevronRight, Armchair, Lock, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBookingStore } from '@/store/useBookingStore';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -80,6 +80,7 @@ function SeatsContent() {
     setReservation 
   } = useBookingStore();
   const { isAuthenticated, user } = useAuthStore();
+  const prevSelectedRef = useRef<string[]>([]);
 
   // 10-Minute Lock Timer Countdown when seats are selected
   useEffect(() => {
@@ -108,6 +109,83 @@ function SeatsContent() {
     const s = secs % 60;
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
+
+  // Cross-Tab Real-Time Sync via BroadcastChannel
+  useEffect(() => {
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel('truetix_seat_sync');
+      channel.onmessage = (event) => {
+        const { type, showtimeId: eventShowtimeId, seatIds, senderId } = event.data;
+        if (eventShowtimeId !== showtimeId) return;
+
+        setSeats((prev) => {
+          const updated = { ...prev };
+          if (type === 'LOCK_SEATS') {
+            seatIds.forEach((sId: string) => {
+              if (updated[sId] && updated[sId].status !== 'SOLD') {
+                updated[sId] = { ...updated[sId], status: 'HOLDING', heldByUserId: senderId };
+              }
+            });
+          } else if (type === 'RELEASE_SEATS') {
+            seatIds.forEach((sId: string) => {
+              if (updated[sId] && updated[sId].status === 'HOLDING') {
+                updated[sId] = { ...updated[sId], status: 'AVAILABLE', heldByUserId: undefined };
+              }
+            });
+          } else if (type === 'BOOK_SEATS') {
+            seatIds.forEach((sId: string) => {
+              if (updated[sId]) {
+                updated[sId] = { ...updated[sId], status: 'SOLD' };
+              }
+            });
+          }
+          return updated;
+        });
+      };
+    } catch (e) {
+      console.warn('BroadcastChannel not supported');
+    }
+
+    return () => {
+      if (channel) channel.close();
+    };
+  }, [showtimeId]);
+
+  // Broadcast current selections to other open tabs / windows
+  useEffect(() => {
+    const currentIds = selectedSeats.map(s => s.id);
+    const prevIds = prevSelectedRef.current;
+
+    // Determine newly locked and newly released seats
+    const newlyLocked = currentIds.filter(id => !prevIds.includes(id));
+    const newlyReleased = prevIds.filter(id => !currentIds.includes(id));
+
+    try {
+      const channel = new BroadcastChannel('truetix_seat_sync');
+      if (newlyLocked.length > 0) {
+        channel.postMessage({
+          type: 'LOCK_SEATS',
+          showtimeId,
+          seatIds: newlyLocked,
+          senderId: user?.id || 'local_user'
+        });
+      }
+      if (newlyReleased.length > 0) {
+        channel.postMessage({
+          type: 'RELEASE_SEATS',
+          showtimeId,
+          seatIds: newlyReleased,
+          senderId: user?.id || 'local_user'
+        });
+      }
+      channel.close();
+    } catch (e) {
+      // Ignored
+    }
+
+    prevSelectedRef.current = currentIds;
+  }, [selectedSeats, showtimeId, user?.id]);
 
   useEffect(() => {
     const fetchMatrix = async () => {
@@ -188,14 +266,36 @@ function SeatsContent() {
   }, [showtimeId, setShowtime]);
 
   const handleSeatClick = (seat: Seat) => {
-    if (seat.status !== 'AVAILABLE' && !selectedSeats.find(s => s.id === seat.id) && seat.heldByUserId !== user?.id) {
-      return; // Cannot select unavailable seat
+    const currentSeat = seats[seat.id] || seat;
+    const isSelected = !!selectedSeats.find(s => s.id === currentSeat.id);
+
+    // Double Booking / Sold Seat Click Protection
+    if (currentSeat.status === 'SOLD') {
+      toast.error(`🚫 Double-Booking Blocked: Seat ${currentSeat.id} is already SOLD and cannot be booked!`, {
+        description: 'PostgreSQL Transaction and Redlock prevent duplicate ticket purchases.',
+        duration: 4000
+      });
+      return;
     }
 
-    const price = seat.price ? seat.price : Math.round(basePrice * (seat.priceModifier || 1.0));
+    // Temporary Hold / Concurrency Lock Protection
+    if (currentSeat.status === 'HOLDING' && !isSelected && currentSeat.heldByUserId !== user?.id) {
+      toast.warning(`⏳ Double-Booking Blocked: Seat ${currentSeat.id} is currently held by another customer!`, {
+        description: 'Protected by 10-Minute Redis TTL temporary seat lock.',
+        duration: 4000
+      });
+      return;
+    }
+
+    if (currentSeat.status === 'BLOCKED') {
+      toast.error(`Seat ${currentSeat.id} is currently unavailable.`);
+      return;
+    }
+
+    const price = currentSeat.price ? currentSeat.price : Math.round(basePrice * (currentSeat.priceModifier || 1.0));
     toggleSeat({
-      id: seat.id,
-      name: seat.id,
+      id: currentSeat.id,
+      name: currentSeat.id,
       price: price
     });
   };
@@ -204,7 +304,7 @@ function SeatsContent() {
     if (selectedSeats.length === 0) return;
     
     if (!isAuthenticated) {
-      toast.info('You are booking as guest. Let\'s continue to combos!');
+      toast.info('Booking as guest. Continuing to snacks & combos!');
     }
     
     try {
@@ -297,20 +397,20 @@ function SeatsContent() {
                     const currentSeat = seats[seat.id] || seat;
                     const isSelected = !!selectedSeats.find(s => s.id === currentSeat.id);
                     
-                    let bgClass = "bg-zinc-800 text-gray-300 border-zinc-700 hover:border-primary hover:text-white"; // AVAILABLE STANDARD
-                    if (currentSeat.type === 'VIP') bgClass = "bg-amber-950/40 border-amber-500/50 text-amber-300 hover:bg-amber-500/30";
-                    if (currentSeat.type === 'COUPLE') bgClass = "bg-pink-950/40 border-pink-500/50 text-pink-300 hover:bg-pink-500/30";
+                    let bgClass = "bg-zinc-800 text-gray-300 border-zinc-700 hover:border-primary hover:text-white cursor-pointer"; // AVAILABLE STANDARD
+                    if (currentSeat.type === 'VIP') bgClass = "bg-amber-950/40 border-amber-500/50 text-amber-300 hover:bg-amber-500/30 cursor-pointer";
+                    if (currentSeat.type === 'COUPLE') bgClass = "bg-pink-950/40 border-pink-500/50 text-pink-300 hover:bg-pink-500/30 cursor-pointer";
                     
-                    if (currentSeat.status === 'SOLD') bgClass = "bg-zinc-900 text-zinc-600 border-zinc-800 cursor-not-allowed opacity-40 line-through";
-                    if (currentSeat.status === 'HOLDING' && !isSelected) bgClass = "bg-yellow-950/40 text-yellow-500 border-yellow-600/50 cursor-not-allowed opacity-60";
+                    if (currentSeat.status === 'SOLD') bgClass = "bg-zinc-950 text-zinc-600 border-zinc-900 cursor-not-allowed opacity-50 hover:border-destructive/60 hover:text-destructive";
+                    if (currentSeat.status === 'HOLDING' && !isSelected) bgClass = "bg-yellow-950/70 text-yellow-400 border-yellow-500/80 cursor-not-allowed shadow-[0_0_12px_rgba(234,179,8,0.4)] animate-pulse";
                     if (currentSeat.status === 'BLOCKED') bgClass = "bg-black text-transparent cursor-not-allowed border-none opacity-20";
                     
-                    if (isSelected) bgClass = "bg-primary text-white shadow-[0_0_15px_rgba(225,29,72,0.8)] border-primary scale-110 z-10 transition-transform font-bold";
+                    if (isSelected) bgClass = "bg-primary text-white shadow-[0_0_15px_rgba(225,29,72,0.8)] border-primary scale-110 z-10 transition-transform font-bold cursor-pointer";
 
                     return (
                       <button
                         key={currentSeat.id}
-                        disabled={currentSeat.status !== 'AVAILABLE' && !isSelected && currentSeat.heldByUserId !== user?.id}
+                        type="button"
                         onClick={() => handleSeatClick(currentSeat)}
                         className={`
                           relative h-8 md:h-10 rounded-t-lg rounded-b-sm border flex items-center justify-center text-xs font-semibold transition-all
@@ -318,7 +418,15 @@ function SeatsContent() {
                           ${bgClass}
                         `}
                       >
-                        {isSelected ? <Armchair className="w-4 h-4" /> : currentSeat.id}
+                        {isSelected ? (
+                          <Armchair className="w-4 h-4" />
+                        ) : currentSeat.status === 'SOLD' ? (
+                          <span className="text-[10px] font-bold text-zinc-600 line-through">✕ {currentSeat.id}</span>
+                        ) : currentSeat.status === 'HOLDING' ? (
+                          <span className="text-[10px] font-bold text-yellow-400 flex items-center gap-0.5"><Lock className="w-3 h-3" /> {currentSeat.id}</span>
+                        ) : (
+                          currentSeat.id
+                        )}
                       </button>
                     );
                   })}
@@ -346,8 +454,11 @@ function SeatsContent() {
           <div className="flex items-center gap-2 text-xs md:text-sm text-primary font-bold">
             <div className="w-5 h-5 bg-primary border border-primary rounded-t-lg shadow-[0_0_8px_rgba(225,29,72,0.8)]" /> Selected
           </div>
+          <div className="flex items-center gap-2 text-xs md:text-sm text-yellow-400 font-medium">
+            <div className="w-5 h-5 bg-yellow-950/70 border border-yellow-500/80 rounded-t-lg flex items-center justify-center text-[9px]">🔒</div> Holding (10m)
+          </div>
           <div className="flex items-center gap-2 text-xs md:text-sm text-zinc-500">
-            <div className="w-5 h-5 bg-zinc-900 border border-zinc-800 rounded-t-lg opacity-40 line-through" /> Sold
+            <div className="w-5 h-5 bg-zinc-950 border border-zinc-800 rounded-t-lg opacity-50 flex items-center justify-center text-[10px] text-zinc-600">✕</div> Sold
           </div>
         </div>
       </div>
