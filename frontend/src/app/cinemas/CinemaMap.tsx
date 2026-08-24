@@ -49,10 +49,17 @@ export default function CinemaMap({
   return (
     <div className="w-full h-[400px] mb-12 rounded-2xl overflow-hidden border-2 border-amber-500/20 shadow-[0_0_30px_rgba(245,158,11,0.15)] relative z-0">
       <MapContainer center={mapCenter} zoom={11} scrollWheelZoom={false} className="w-full h-full z-0">
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        {process.env.NEXT_PUBLIC_MAPBOX_TOKEN ? (
+          <TileLayer
+            attribution='&copy; <a href="https://www.mapbox.com/">Mapbox</a>'
+            url={`https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/256/{z}/{x}/{y}@2x?access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}`}
+          />
+        ) : (
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+        )}
         <MapUpdater center={mapCenter} cinemas={cinemas} userLoc={userLoc} />
         
         {userLoc && (
