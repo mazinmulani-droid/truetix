@@ -19,12 +19,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useBookingStore } from '@/store/useBookingStore';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useMovieStore } from '@/store/useMovieStore';
 import { QRCodeSVG } from 'qrcode.react';
 import { API_URL } from '@/lib/constants';
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { 
+    movieId,
     showtimeId,
     selectedSeats, 
     reservationId,
@@ -33,6 +35,8 @@ export default function CheckoutPage() {
     getTotalAmount,
     resetBooking
   } = useBookingStore();
+  
+  const getMovieById = useMovieStore(state => state.getMovieById);
   
   const { isAuthenticated, user, accessToken } = useAuthStore();
   const [paymentMethod, setPaymentMethod] = useState<'CREDIT_CARD' | 'TRUETIX_CARD' | 'UPI'>('TRUETIX_CARD');
@@ -118,9 +122,11 @@ export default function CheckoutPage() {
       const mockHmac = Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b => b.toString(16).padStart(2, '0')).join('');
       const qrCodeData = `TKT.${payloadBase64}.${mockHmac}`;
       
+      const currentMovie = movieId ? getMovieById(movieId) : null;
+      
       offlineTickets.push({
         id: finalBkgId,
-        movieTitle: "Spider-Man: No Way Home", // Mock title
+        movieTitle: currentMovie ? currentMovie.title : "TrueTix Cinema Experience",
         cinemaName: "TrueTix Phoenix Marketcity",
         screenName: "IMAX Screen 1",
         showDate: new Date().toISOString(),
