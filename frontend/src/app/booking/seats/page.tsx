@@ -4,12 +4,10 @@ import { useEffect, useState, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/axios';
 import { toast } from 'sonner';
-import { Clock, Monitor, ChevronRight, Armchair, Lock, X } from 'lucide-react';
+import { Clock, Monitor, ChevronRight, Armchair, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBookingStore } from '@/store/useBookingStore';
 import { useAuthStore } from '@/store/useAuthStore';
-import { io } from 'socket.io-client';
-import { SOCKET_URL } from '@/lib/constants';
 
 interface Seat {
   id: string; // row + col e.g. A1
@@ -64,7 +62,7 @@ const generateDefaultMatrix = () => {
 
 function SeatsContent() {
   const searchParams = useSearchParams();
-  const showtimeId = searchParams.get('showtimeId') || 'st_1';
+  const showtimeId = searchParams.get('showtimeId') || 'st_demo_1';
   const router = useRouter();
 
   const [matrix, setMatrix] = useState<any>(null);
@@ -72,6 +70,7 @@ function SeatsContent() {
   const [basePrice, setBasePrice] = useState(100000);
   const [loading, setLoading] = useState(true);
   const [secondsRemaining, setSecondsRemaining] = useState(600); // 10-min Redis TTL
+  const [sessionId] = useState(() => `client_${Math.random().toString(36).substring(2, 9)}_${Date.now()}`);
   
   const { 
     selectedSeats, 
@@ -110,164 +109,96 @@ function SeatsContent() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  // Cross-Tab Real-Time Sync via BroadcastChannel
-  useEffect(() => {
-    let channel: BroadcastChannel | null = null;
+  // Sync with Shared Server Lock Store (connects Normal, Incognito, all tabs/windows in real time)
+  const syncServerLocks = async () => {
     try {
-      channel = new BroadcastChannel('truetix_seat_sync');
-      channel.onmessage = (event) => {
-        const { type, showtimeId: eventShowtimeId, seatIds, senderId } = event.data;
-        if (eventShowtimeId !== showtimeId) return;
-
+      const res = await fetch(`/api/seats/sync?showtimeId=${showtimeId}`);
+      const json = await res.json();
+      if (json.success && json.data) {
+        const locks = json.data;
         setSeats((prev) => {
           const updated = { ...prev };
-          if (type === 'LOCK_SEATS') {
-            seatIds.forEach((sId: string) => {
-              if (updated[sId] && updated[sId].status !== 'SOLD') {
-                updated[sId] = { ...updated[sId], status: 'HOLDING', heldByUserId: senderId };
-              }
-            });
-          } else if (type === 'RELEASE_SEATS') {
-            seatIds.forEach((sId: string) => {
-              if (updated[sId] && updated[sId].status === 'HOLDING') {
-                updated[sId] = { ...updated[sId], status: 'AVAILABLE', heldByUserId: undefined };
-              }
-            });
-          } else if (type === 'BOOK_SEATS') {
-            seatIds.forEach((sId: string) => {
-              if (updated[sId]) {
-                updated[sId] = { ...updated[sId], status: 'SOLD' };
-              }
-            });
-          }
+          Object.keys(updated).forEach((seatId) => {
+            const serverLock = locks[seatId];
+            if (serverLock) {
+              updated[seatId] = {
+                ...updated[seatId],
+                status: serverLock.status,
+                heldByUserId: serverLock.heldBy,
+              };
+            } else if (updated[seatId].status === 'HOLDING') {
+              // If it was holding and not in server lock anymore
+              updated[seatId] = {
+                ...updated[seatId],
+                status: 'AVAILABLE',
+                heldByUserId: undefined,
+              };
+            }
+          });
           return updated;
         });
-      };
+      }
     } catch (e) {
-      console.warn('BroadcastChannel not supported');
+      // Ignored
     }
+  };
 
-    return () => {
-      if (channel) channel.close();
-    };
-  }, [showtimeId]);
+  // Initial Matrix Load and 1.5s Polling for Real-Time Concurrency
+  useEffect(() => {
+    const fallback = generateDefaultMatrix();
+    setMatrix(fallback.matrix);
+    setSeats(fallback.seatMap);
+    setBasePrice(fallback.basePrice);
+    setShowtime('mov_1', 'cin_1', showtimeId);
+    setLoading(false);
 
-  // Broadcast current selections to other open tabs / windows
+    syncServerLocks();
+    const interval = setInterval(syncServerLocks, 1200);
+
+    return () => clearInterval(interval);
+  }, [showtimeId, setShowtime]);
+
+  // Sync local selection state to Shared Server Lock store
   useEffect(() => {
     const currentIds = selectedSeats.map(s => s.id);
     const prevIds = prevSelectedRef.current;
 
-    // Determine newly locked and newly released seats
     const newlyLocked = currentIds.filter(id => !prevIds.includes(id));
     const newlyReleased = prevIds.filter(id => !currentIds.includes(id));
 
-    try {
-      const channel = new BroadcastChannel('truetix_seat_sync');
-      if (newlyLocked.length > 0) {
-        channel.postMessage({
-          type: 'LOCK_SEATS',
+    if (newlyLocked.length > 0) {
+      fetch('/api/seats/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           showtimeId,
           seatIds: newlyLocked,
-          senderId: user?.id || 'local_user'
-        });
-      }
-      if (newlyReleased.length > 0) {
-        channel.postMessage({
-          type: 'RELEASE_SEATS',
+          action: 'LOCK',
+          senderId: user?.id || sessionId,
+        }),
+      }).then(syncServerLocks);
+    }
+
+    if (newlyReleased.length > 0) {
+      fetch('/api/seats/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           showtimeId,
           seatIds: newlyReleased,
-          senderId: user?.id || 'local_user'
-        });
-      }
-      channel.close();
-    } catch (e) {
-      // Ignored
+          action: 'RELEASE',
+          senderId: user?.id || sessionId,
+        }),
+      }).then(syncServerLocks);
     }
 
     prevSelectedRef.current = currentIds;
-  }, [selectedSeats, showtimeId, user?.id]);
+  }, [selectedSeats, showtimeId, sessionId, user?.id]);
 
-  useEffect(() => {
-    const fetchMatrix = async () => {
-      try {
-        const res: any = await api.get(`/showtimes/${showtimeId}/seats`);
-        if (res.success && res.data?.hall?.roomMatrix?.grid) {
-          const data = res.data;
-          setMatrix(data.hall.roomMatrix);
-          setBasePrice(data.basePrice || 100000);
-          
-          const seatMap: Record<string, Seat> = {};
-          data.hall.roomMatrix.grid.forEach((row: any) => {
-            if (Array.isArray(row)) {
-              row.forEach((seat: any) => {
-                if (seat && seat.id) seatMap[seat.id] = seat;
-              });
-            }
-          });
-          
-          if (data.seats && Array.isArray(data.seats)) {
-            data.seats.forEach((s: any) => {
-              if (seatMap[s.seatId]) {
-                seatMap[s.seatId] = {
-                  ...seatMap[s.seatId],
-                  status: s.status,
-                  priceModifier: s.priceModifier,
-                  price: s.price,
-                  heldByUserId: s.heldByUserId
-                };
-              }
-            });
-          }
-          setSeats(seatMap);
-          setShowtime(data.movieId || 'mov_1', data.cinemaId || 'cin_1', showtimeId);
-          setLoading(false);
-          return;
-        }
-      } catch (error) {
-        console.warn('Backend offline, generating default auditorium seat layout.');
-      }
-
-      // Default Matrix Fallback
-      const fallback = generateDefaultMatrix();
-      setMatrix(fallback.matrix);
-      setSeats(fallback.seatMap);
-      setBasePrice(fallback.basePrice);
-      setShowtime('mov_1', 'cin_1', showtimeId);
-      setLoading(false);
-    };
-
-    fetchMatrix();
-
-    // Socket.io for live updates
-    let socket: any = null;
-    try {
-      socket = io(SOCKET_URL);
-      socket.emit('join:showtime', { showtimeId });
-      socket.on('seat:state_changed', (data: any) => {
-        setSeats(prevSeats => {
-          const newSeats = { ...prevSeats };
-          if (newSeats[data.seatId]) {
-            newSeats[data.seatId] = { 
-              ...newSeats[data.seatId], 
-              status: data.status,
-              heldByUserId: data.heldByUserId
-            };
-          }
-          return newSeats;
-        });
-      });
-    } catch (err) {
-      console.warn('WebSocket server offline, running in resilient standalone mode.');
-    }
-
-    return () => {
-      if (socket) socket.disconnect();
-    };
-  }, [showtimeId, setShowtime]);
-
-  const handleSeatClick = (seat: Seat) => {
+  const handleSeatClick = async (seat: Seat) => {
     const currentSeat = seats[seat.id] || seat;
     const isSelected = !!selectedSeats.find(s => s.id === currentSeat.id);
+    const currentUserId = user?.id || sessionId;
 
     // Double Booking / Sold Seat Click Protection
     if (currentSeat.status === 'SOLD') {
@@ -278,8 +209,8 @@ function SeatsContent() {
       return;
     }
 
-    // Temporary Hold / Concurrency Lock Protection
-    if (currentSeat.status === 'HOLDING' && !isSelected && currentSeat.heldByUserId !== user?.id) {
+    // Temporary Hold / Concurrency Lock Protection (by another user/tab)
+    if (currentSeat.status === 'HOLDING' && !isSelected && currentSeat.heldByUserId && currentSeat.heldByUserId !== currentUserId) {
       toast.warning(`⏳ Double-Booking Blocked: Seat ${currentSeat.id} is currently held by another customer!`, {
         description: 'Protected by 10-Minute Redis TTL temporary seat lock.',
         duration: 4000
@@ -306,26 +237,19 @@ function SeatsContent() {
     if (!isAuthenticated) {
       toast.info('Booking as guest. Continuing to snacks & combos!');
     }
-    
-    try {
-      const res: any = await api.post(`/bookings/hold-seat`, {
-        showtimeId,
-        seatIds: selectedSeats.map(s => s.id)
-      });
-      
-      if (res.success) {
-        setReservation(res.data.reservationId, res.data.expiresAt);
-        router.push('/booking/fb');
-        return;
-      }
-    } catch (error: any) {
-      if (error.response?.status === 409) {
-        toast.error('Some of the seats you selected have just been booked. Please choose different seats.');
-        return;
-      }
-    }
 
-    // Fallback: reserve locally with 10-minute expiry
+    // Mark seats as locked in server sync
+    await fetch('/api/seats/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        showtimeId,
+        seatIds: selectedSeats.map(s => s.id),
+        action: 'LOCK',
+        senderId: user?.id || sessionId,
+      }),
+    });
+
     const mockReservationId = `res_${Date.now()}`;
     const mockExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
     setReservation(mockReservationId, mockExpiresAt);
@@ -396,13 +320,15 @@ function SeatsContent() {
 
                     const currentSeat = seats[seat.id] || seat;
                     const isSelected = !!selectedSeats.find(s => s.id === currentSeat.id);
+                    const currentUserId = user?.id || sessionId;
+                    const isHeldByOther = currentSeat.status === 'HOLDING' && !isSelected && currentSeat.heldByUserId && currentSeat.heldByUserId !== currentUserId;
                     
                     let bgClass = "bg-zinc-800 text-gray-300 border-zinc-700 hover:border-primary hover:text-white cursor-pointer"; // AVAILABLE STANDARD
                     if (currentSeat.type === 'VIP') bgClass = "bg-amber-950/40 border-amber-500/50 text-amber-300 hover:bg-amber-500/30 cursor-pointer";
                     if (currentSeat.type === 'COUPLE') bgClass = "bg-pink-950/40 border-pink-500/50 text-pink-300 hover:bg-pink-500/30 cursor-pointer";
                     
                     if (currentSeat.status === 'SOLD') bgClass = "bg-zinc-950 text-zinc-600 border-zinc-900 cursor-not-allowed opacity-50 hover:border-destructive/60 hover:text-destructive";
-                    if (currentSeat.status === 'HOLDING' && !isSelected) bgClass = "bg-yellow-950/70 text-yellow-400 border-yellow-500/80 cursor-not-allowed shadow-[0_0_12px_rgba(234,179,8,0.4)] animate-pulse";
+                    if (isHeldByOther) bgClass = "bg-yellow-950/70 text-yellow-400 border-yellow-500/80 cursor-not-allowed shadow-[0_0_12px_rgba(234,179,8,0.5)] animate-pulse";
                     if (currentSeat.status === 'BLOCKED') bgClass = "bg-black text-transparent cursor-not-allowed border-none opacity-20";
                     
                     if (isSelected) bgClass = "bg-primary text-white shadow-[0_0_15px_rgba(225,29,72,0.8)] border-primary scale-110 z-10 transition-transform font-bold cursor-pointer";
@@ -422,7 +348,7 @@ function SeatsContent() {
                           <Armchair className="w-4 h-4" />
                         ) : currentSeat.status === 'SOLD' ? (
                           <span className="text-[10px] font-bold text-zinc-600 line-through">✕ {currentSeat.id}</span>
-                        ) : currentSeat.status === 'HOLDING' ? (
+                        ) : isHeldByOther ? (
                           <span className="text-[10px] font-bold text-yellow-400 flex items-center gap-0.5"><Lock className="w-3 h-3" /> {currentSeat.id}</span>
                         ) : (
                           currentSeat.id
