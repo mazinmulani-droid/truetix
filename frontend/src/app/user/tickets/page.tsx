@@ -64,13 +64,16 @@ export default function MyTicketsPage() {
     }
 
     try {
-      // Use dynamic imports to prevent SSR/Hydration issues
-      const html2canvas = (await import('html2canvas')).default;
-      const jsPDF = (await import('jspdf')).default;
+      // Use dynamic imports to prevent SSR/Hydration issues, handling both ESM and CommonJS
+      const html2canvasModule = await import('html2canvas');
+      const html2canvas = html2canvasModule.default || html2canvasModule;
+      
+      const jsPDFModule = await import('jspdf');
+      const jsPDF = jsPDFModule.jsPDF || jsPDFModule.default;
 
       // Temporarily make it visible for html2canvas to capture it accurately
       ticketElement.style.opacity = '1';
-      ticketElement.style.position = 'absolute';
+      ticketElement.style.position = 'fixed';
       ticketElement.style.left = '0px';
       ticketElement.style.top = '0px';
       ticketElement.style.zIndex = '-50';
