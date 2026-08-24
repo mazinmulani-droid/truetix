@@ -13,6 +13,14 @@ export default function TicketScanPage() {
   const [ticketDetails, setTicketDetails] = useState<any>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  
+  // Refs to prevent stale closures in scanner callbacks
+  const scanResultRef = useRef<string | null>(null);
+  const isVerifyingRef = useRef<boolean>(false);
+  const scannedTokensRef = useRef<Set<string>>(new Set());
+
+  const [manualToken, setManualToken] = useState('');
+  const [scannedTokens, setScannedTokens] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     // Initialize Scanner on mount
@@ -36,7 +44,8 @@ export default function TicketScanPage() {
 
   const onScanSuccess = (decodedText: string) => {
     // Only process if it's a new code and we're not already verifying
-    if (decodedText !== scanResult && !isVerifying) {
+    if (decodedText !== scanResultRef.current && !isVerifyingRef.current) {
+      scanResultRef.current = decodedText;
       setScanResult(decodedText);
       verifyTicket(decodedText);
     }
@@ -46,15 +55,14 @@ export default function TicketScanPage() {
     // ignore
   };
 
-  const [manualToken, setManualToken] = useState('');
-  const [scannedTokens, setScannedTokens] = useState<Set<string>>(new Set());
-
   const verifyTicket = async (qrPayload: string) => {
+    isVerifyingRef.current = true;
     setIsVerifying(true);
     setTicketDetails(null);
 
     // Check duplicate entry simulation locally if backend offline
-    if (scannedTokens.has(qrPayload)) {
+    if (scannedTokensRef.current.has(qrPayload)) {
+      isVerifyingRef.current = false;
       setIsVerifying(false);
       setTicketDetails({
         status: 'INVALID',
@@ -71,7 +79,8 @@ export default function TicketScanPage() {
         setTicketDetails(res.data);
         if (res.data.status === 'VALID') {
           toast.success('Ticket VALID. Admit customer.');
-          setScannedTokens(prev => new Set(prev).add(qrPayload));
+          scannedTokensRef.current.add(qrPayload);
+          setScannedTokens(new Set(scannedTokensRef.current));
         } else {
           toast.error('Ticket INVALID or ALREADY USED.');
         }
@@ -82,7 +91,8 @@ export default function TicketScanPage() {
     }
 
     // Resilient fallback validation
-    setScannedTokens(prev => new Set(prev).add(qrPayload));
+    scannedTokensRef.current.add(qrPayload);
+    setScannedTokens(new Set(scannedTokensRef.current));
     setTicketDetails({
       status: 'VALID',
       message: 'Admission Granted (HMAC Verified)',
@@ -100,17 +110,21 @@ export default function TicketScanPage() {
       }
     });
     toast.success('Ticket VALID. Admit customer.');
+    
+    isVerifyingRef.current = false;
     setIsVerifying(false);
   };
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualToken.trim()) return;
+    scanResultRef.current = manualToken;
     setScanResult(manualToken);
     verifyTicket(manualToken.trim());
   };
 
   const handleReset = () => {
+    scanResultRef.current = null;
     setScanResult(null);
     setTicketDetails(null);
     setManualToken('');
