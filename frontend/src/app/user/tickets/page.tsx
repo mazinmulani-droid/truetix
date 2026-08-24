@@ -21,10 +21,27 @@ export default function MyTicketsPage() {
 
     const fetchTickets = async () => {
       try {
-        const res = await api.get('/tickets/my-tickets');
-        if (res.success) {
-          setTickets(res.data.tickets || []);
+        let combinedTickets = [];
+        
+        // 1. Fetch offline tickets
+        try {
+          const offlineTickets = JSON.parse(localStorage.getItem('truetix-offline-tickets') || '[]');
+          combinedTickets = [...offlineTickets];
+        } catch (e) {
+          console.error('Failed to parse offline tickets', e);
         }
+
+        // 2. Try fetching backend tickets
+        try {
+          const res = await api.get('/tickets/my-tickets');
+          if (res.success && res.data.tickets) {
+            combinedTickets = [...combinedTickets, ...res.data.tickets];
+          }
+        } catch (apiError) {
+          console.warn('Backend tickets offline, displaying local tickets only');
+        }
+        
+        setTickets(combinedTickets);
       } catch (error) {
         console.error('Failed to fetch tickets:', error);
       } finally {

@@ -108,6 +108,29 @@ export default function CheckoutPage() {
           senderId: user?.id || 'customer',
         }),
       });
+
+      // Save offline ticket
+      const offlineTickets = JSON.parse(localStorage.getItem('truetix-offline-tickets') || '[]');
+      
+      // Generate HMAC-signed QR data
+      const payloadBase64 = btoa(JSON.stringify({ bkg: finalBkgId, seats: selectedSeats.map(s => s.id) }));
+      // Mock SHA-256 HMAC for demo purposes
+      const mockHmac = Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b => b.toString(16).padStart(2, '0')).join('');
+      const qrCodeData = `TKT.${payloadBase64}.${mockHmac}`;
+      
+      offlineTickets.push({
+        id: finalBkgId,
+        movieTitle: "Spider-Man: No Way Home", // Mock title
+        cinemaName: "TrueTix Phoenix Marketcity",
+        screenName: "IMAX Screen 1",
+        showDate: new Date().toISOString(),
+        startTime: "19:15",
+        endTime: "21:45",
+        seats: selectedSeats.map(s => s.name),
+        status: "PAID",
+        qrCodeData: qrCodeData
+      });
+      localStorage.setItem('truetix-offline-tickets', JSON.stringify(offlineTickets));
     } catch (e) {
       // Ignored
     }

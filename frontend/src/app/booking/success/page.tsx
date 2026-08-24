@@ -12,9 +12,36 @@ function BookingSuccessContent() {
   const bookingId = searchParams.get('bookingId') || 'BKG_MOCK_12345';
   
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const [ticketDetails, setTicketDetails] = useState<any>(null);
 
-  if (!mounted) return null;
+  useEffect(() => {
+    setMounted(true);
+    
+    // Read ticket from offline storage
+    const offlineTickets = JSON.parse(localStorage.getItem('truetix-offline-tickets') || '[]');
+    const foundTicket = offlineTickets.find((t: any) => t.id === bookingId);
+    
+    if (foundTicket) {
+      setTicketDetails(foundTicket);
+    } else {
+      // Generate mock HMAC if not found
+      const payloadBase64 = btoa(JSON.stringify({ bkg: bookingId, seats: ['MOCK'] }));
+      const mockHmac = Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b => b.toString(16).padStart(2, '0')).join('');
+      
+      setTicketDetails({
+        movieTitle: "TrueTix Cinema Experience",
+        cinemaName: "TrueTix Phoenix Marketcity",
+        screenName: "IMAX Screen 1",
+        showDate: new Date().toISOString(),
+        startTime: "19:30",
+        endTime: "21:40",
+        seats: ["H1", "H2"],
+        qrCodeData: `TKT.${payloadBase64}.${mockHmac}`
+      });
+    }
+  }, [bookingId]);
+
+  if (!mounted || !ticketDetails) return null;
 
   return (
     <div className="min-h-screen bg-background py-12">
@@ -37,7 +64,7 @@ function BookingSuccessContent() {
               {/* QR Code Section */}
               <div className="flex-shrink-0 flex flex-col items-center justify-center p-6 bg-white rounded-xl border-4 border-dashed border-gray-300">
                 <QRCodeSVG 
-                  value={`TrueTix_TICKET_${bookingId}_HMAC_VALID`}
+                  value={ticketDetails.qrCodeData}
                   size={150}
                   bgColor={"#ffffff"}
                   fgColor={"#000000"}
@@ -49,7 +76,7 @@ function BookingSuccessContent() {
               {/* Details */}
               <div className="flex-1 space-y-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-primary uppercase mb-1">TrueTix Cinema Experience</h2>
+                  <h2 className="text-2xl font-bold text-primary uppercase mb-1">{ticketDetails.movieTitle}</h2>
                   <p className="text-sm font-medium bg-primary/20 text-primary inline-block px-2 py-0.5 rounded border border-primary/30">
                     2D - Standard
                   </p>
@@ -59,21 +86,23 @@ function BookingSuccessContent() {
                   <div className="flex items-center gap-3">
                     <MapPin className="w-5 h-5 text-white" />
                     <div>
-                      <p className="font-bold text-white">TrueTix Cinemas</p>
-                      <p>Screen 1</p>
+                      <p className="font-bold text-white">{ticketDetails.cinemaName}</p>
+                      <p>{ticketDetails.screenName}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <Calendar className="w-5 h-5 text-white" />
-                    <p className="font-bold text-white">Friday, 15/08/2026</p>
+                    <p className="font-bold text-white">
+                      {new Date(ticketDetails.showDate).toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <Clock className="w-5 h-5 text-white" />
-                    <p className="font-bold text-white">19:30 - 21:40</p>
+                    <p className="font-bold text-white">{ticketDetails.startTime} - {ticketDetails.endTime}</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <Ticket className="w-5 h-5 text-white" />
-                    <p>Seats: <span className="font-bold text-white text-base">Reserved</span></p>
+                    <p>Seats: <span className="font-bold text-white text-base">{ticketDetails.seats.join(', ')}</span></p>
                   </div>
                 </div>
 
