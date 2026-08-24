@@ -50,8 +50,8 @@ export default function CinemaMap({
     <div className="w-full h-[400px] mb-12 rounded-2xl overflow-hidden border-2 border-amber-500/20 shadow-[0_0_30px_rgba(245,158,11,0.15)] relative z-0">
       <MapContainer center={mapCenter} zoom={11} scrollWheelZoom={false} className="w-full h-full z-0">
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <MapUpdater center={mapCenter} cinemas={cinemas} userLoc={userLoc} />
         
