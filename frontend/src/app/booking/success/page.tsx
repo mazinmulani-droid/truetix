@@ -49,11 +49,13 @@ function BookingSuccessContent() {
         <div className="w-full max-w-2xl bg-card border border-border rounded-lg overflow-hidden shadow-2xl">
           
           {/* Header */}
-          <div className="bg-green-500/20 p-8 text-center border-b border-green-500/30">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/30 mb-4">
-              <CheckCircle className="w-10 h-10 text-green-500" />
+          <div className={`p-8 text-center border-b ${ticketDetails.status === 'PENDING' ? 'bg-yellow-500/20 border-yellow-500/30' : 'bg-green-500/20 border-green-500/30'}`}>
+            <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${ticketDetails.status === 'PENDING' ? 'bg-yellow-500/30' : 'bg-green-500/30'}`}>
+              <CheckCircle className={`w-10 h-10 ${ticketDetails.status === 'PENDING' ? 'text-yellow-500' : 'text-green-500'}`} />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">Booking Confirmed!</h1>
+            <h1 className="text-3xl font-bold text-white mb-2">
+              {ticketDetails.status === 'PENDING' ? 'Payment Pending Verification' : 'Booking Confirmed!'}
+            </h1>
             <p className="text-muted-foreground">Order Reference: <span className="font-bold text-white">{bookingId}</span></p>
           </div>
 
@@ -63,14 +65,22 @@ function BookingSuccessContent() {
               
               {/* QR Code Section */}
               <div className="flex-shrink-0 flex flex-col items-center justify-center p-6 bg-white rounded-xl border-4 border-dashed border-gray-300">
-                <QRCodeSVG 
-                  value={ticketDetails.qrCodeData}
-                  size={150}
-                  bgColor={"#ffffff"}
-                  fgColor={"#000000"}
-                  level={"M"}
-                />
-                <p className="text-black text-xs font-bold mt-4 tracking-widest text-center">E-TICKET QR</p>
+                {ticketDetails.status === 'PENDING' ? (
+                  <div className="w-[150px] h-[150px] flex items-center justify-center bg-gray-100 rounded-lg">
+                    <p className="text-gray-500 text-center text-sm px-4">QR Code will appear after admin approval</p>
+                  </div>
+                ) : (
+                  <QRCodeSVG 
+                    value={ticketDetails.qrCodeData}
+                    size={150}
+                    bgColor={"#ffffff"}
+                    fgColor={"#000000"}
+                    level={"M"}
+                  />
+                )}
+                <p className="text-black text-xs font-bold mt-4 tracking-widest text-center">
+                  {ticketDetails.status === 'PENDING' ? 'AWAITING APPROVAL' : 'E-TICKET QR'}
+                </p>
               </div>
 
               {/* Details */}
@@ -108,7 +118,9 @@ function BookingSuccessContent() {
 
                 <div className="pt-4 border-t border-border/50 border-dashed flex justify-between items-center">
                   <span className="text-muted-foreground">Status:</span>
-                  <span className="text-xl font-bold text-green-400">Paid & Confirmed</span>
+                  <span className={`text-xl font-bold ${ticketDetails.status === 'PENDING' ? 'text-yellow-500' : 'text-green-400'}`}>
+                    {ticketDetails.status === 'PENDING' ? 'Pending Approval' : 'Paid & Confirmed'}
+                  </span>
                 </div>
               </div>
             </div>

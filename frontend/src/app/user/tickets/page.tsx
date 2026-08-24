@@ -94,13 +94,22 @@ export default function MyTicketsPage() {
                   </div>
                 </div>
                 
-                <Button 
-                  className="w-full" 
-                  onClick={() => setSelectedTicket(ticket)}
-                  variant="outline"
-                >
-                  View QR Code
-                </Button>
+                {ticket.status === 'PENDING' ? (
+                  <Button 
+                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-white" 
+                    disabled
+                  >
+                    Pending Verification
+                  </Button>
+                ) : (
+                  <Button 
+                    className="w-full" 
+                    onClick={() => setSelectedTicket(ticket)}
+                    variant="outline"
+                  >
+                    View QR Code
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ))}

@@ -43,17 +43,71 @@ export default function CheckoutPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentQr, setPaymentQr] = useState<string | null>(null);
   const [bookingId, setBookingId] = useState<string | null>(null);
-  const [showExitPrompt, setShowExitPrompt] = useState(false);
-  const [exitAction, setExitAction] = useState<(() => void) | null>(null);
-  const isConfirmedExitRef = useRef(false);
-
+  const [showUpiModal, setShowUpiModal] = useState(false);
+  const upiId = process.env.NEXT_PUBLIC_UPI_ID || "7798991206@ybl";
+  
   useEffect(() => {
     if (selectedSeats.length === 0) {
       router.push('/booking/seats');
     }
   }, [selectedSeats, router]);
 
+  const processOfflineBooking = async (status: 'PAID' | 'PENDING' = 'PAID') => {
+    setIsProcessing(true);
+    const finalBkgId = `BKG_${Date.now()}`;
+    try {
+      await fetch('/api/seats/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          showtimeId: showtimeId || 'st_demo_1',
+          seatIds: selectedSeats.map(s => s.id),
+          action: 'BOOK',
+          senderId: user?.id || 'customer',
+        }),
+      });
+
+      const offlineTickets = JSON.parse(localStorage.getItem('truetix-offline-tickets') || '[]');
+      
+      const payloadBase64 = btoa(JSON.stringify({ bkg: finalBkgId, seats: selectedSeats.map(s => s.id) }));
+      const mockHmac = Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b => b.toString(16).padStart(2, '0')).join('');
+      const qrCodeData = `TKT.${payloadBase64}.${mockHmac}`;
+      
+      const currentMovie = movieId ? getMovieById(movieId) : null;
+      
+      offlineTickets.push({
+        id: finalBkgId,
+        movieTitle: currentMovie ? currentMovie.title : "TrueTix Cinema Experience",
+        cinemaName: "TrueTix Phoenix Marketcity",
+        screenName: "IMAX Screen 1",
+        showDate: new Date().toISOString(),
+        startTime: "19:15",
+        endTime: "21:45",
+        seats: selectedSeats.map(s => s.name),
+        status: status,
+        qrCodeData: qrCodeData
+      });
+      localStorage.setItem('truetix-offline-tickets', JSON.stringify(offlineTickets));
+    } catch (e) {
+      // Ignored
+    }
+
+    if (status === 'PENDING') {
+      toast.info('Payment marked as pending verification.');
+    } else {
+      toast.success('Payment successful & E-Ticket generated!');
+    }
+    
+    resetBooking();
+    router.push(`/booking/success?bookingId=${finalBkgId}`);
+  };
+
   const handleCheckout = async () => {
+    if (paymentMethod === 'UPI') {
+      setShowUpiModal(true);
+      return;
+    }
+
     setIsProcessing(true);
     
     // Attempt backend API call if token is present
@@ -83,10 +137,6 @@ export default function CheckoutPage() {
               : paymentUrl;
             window.location.href = frontendPaymentUrl;
             return;
-          } else if (paymentMethod === 'UPI') {
-            setPaymentQr(paymentUrl);
-            setBookingId(bookingId);
-            return;
           } else {
             toast.success('Payment confirmed with TrueTix Card!');
             resetBooking();
@@ -100,50 +150,7 @@ export default function CheckoutPage() {
     }
 
     // Standalone fallback: mark seats as permanently booked on server sync
-    const finalBkgId = `BKG_${Date.now()}`;
-    try {
-      await fetch('/api/seats/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          showtimeId: showtimeId || 'st_demo_1',
-          seatIds: selectedSeats.map(s => s.id),
-          action: 'BOOK',
-          senderId: user?.id || 'customer',
-        }),
-      });
-
-      // Save offline ticket
-      const offlineTickets = JSON.parse(localStorage.getItem('truetix-offline-tickets') || '[]');
-      
-      // Generate HMAC-signed QR data
-      const payloadBase64 = btoa(JSON.stringify({ bkg: finalBkgId, seats: selectedSeats.map(s => s.id) }));
-      // Mock SHA-256 HMAC for demo purposes
-      const mockHmac = Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b => b.toString(16).padStart(2, '0')).join('');
-      const qrCodeData = `TKT.${payloadBase64}.${mockHmac}`;
-      
-      const currentMovie = movieId ? getMovieById(movieId) : null;
-      
-      offlineTickets.push({
-        id: finalBkgId,
-        movieTitle: currentMovie ? currentMovie.title : "TrueTix Cinema Experience",
-        cinemaName: "TrueTix Phoenix Marketcity",
-        screenName: "IMAX Screen 1",
-        showDate: new Date().toISOString(),
-        startTime: "19:15",
-        endTime: "21:45",
-        seats: selectedSeats.map(s => s.name),
-        status: "PAID",
-        qrCodeData: qrCodeData
-      });
-      localStorage.setItem('truetix-offline-tickets', JSON.stringify(offlineTickets));
-    } catch (e) {
-      // Ignored
-    }
-
-    toast.success('Payment successful & E-Ticket generated!');
-    resetBooking();
-    router.push(`/booking/success?bookingId=${finalBkgId}`);
+    await processOfflineBooking('PAID');
   };
 
   const seatsTotal = selectedSeats.reduce((acc, seat) => acc + seat.price, 0);
@@ -315,6 +322,60 @@ export default function CheckoutPage() {
 
         </div>
       </div>
+
+      <AlertDialog open={showUpiModal} onOpenChange={setShowUpiModal}>
+        <AlertDialogContent className="bg-white text-black sm:max-w-md p-0 overflow-hidden border-0 shadow-2xl">
+          <div className="bg-[#0b1b3d] text-white p-4 flex items-center justify-between shadow-md relative z-10">
+            <div className="flex flex-col">
+              <span className="font-bold text-lg">Razorpay Secured</span>
+              <span className="text-xs text-white/70">TrueTix Cinema Ticketing</span>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-white/70">Amount to Pay</div>
+              <div className="font-bold text-xl">₹{getTotalAmount().toLocaleString('en-IN')}</div>
+            </div>
+          </div>
+          
+          <div className="p-6 flex flex-col items-center bg-gray-50">
+            <div className="text-center mb-4">
+              <p className="text-sm font-bold text-gray-800">Scan with any UPI App</p>
+              <div className="flex gap-2 justify-center mt-2 opacity-70">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/e/e1/UPI-Logo-vector.svg" alt="UPI" className="h-4" />
+                <img src="https://upload.wikimedia.org/wikipedia/commons/c/c2/Google_Pay_Logo_%282020%29.svg" alt="GPay" className="h-4" />
+              </div>
+            </div>
+            
+            <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-200 mb-4">
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`upi://pay?pa=${upiId}&pn=TrueTix&am=3&cu=INR`)}`} 
+                alt="UPI QR Code" 
+                className="w-48 h-48"
+              />
+            </div>
+            
+            <div className="text-center text-xs text-gray-500 mb-6 bg-yellow-50 text-yellow-800 px-3 py-2 rounded-md border border-yellow-200">
+              Testing Mode: The QR amount is set to <strong>₹3</strong> instead of ₹{getTotalAmount()}. Please scan and complete the payment of ₹3 to test real transaction flows.
+            </div>
+
+            <div className="flex flex-col w-full gap-2">
+              <Button 
+                className="w-full bg-[#3366cc] hover:bg-[#254ea8] text-white font-bold h-12"
+                onClick={() => processOfflineBooking('PENDING')}
+                disabled={isProcessing}
+              >
+                {isProcessing ? 'Verifying...' : 'I Have Paid ₹3'}
+              </Button>
+              <Button 
+                variant="ghost" 
+                className="w-full text-gray-500 hover:text-gray-800"
+                onClick={() => setShowUpiModal(false)}
+              >
+                Cancel Payment
+              </Button>
+            </div>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

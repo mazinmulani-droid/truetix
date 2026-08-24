@@ -4,7 +4,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { LayoutDashboard, Film, MapPin, Users, Settings, LogOut, CalendarRange, Image as ImageIcon, Building2, Popcorn, Ticket, QrCode, Menu, X, Shield } from 'lucide-react';
+import { LayoutDashboard, Film, MapPin, Users, Settings, LogOut, CalendarRange, Image as ImageIcon, Building2, Popcorn, Ticket, QrCode, Menu, X, Shield, Wallet } from 'lucide-react';
 import { Oswald } from 'next/font/google';
 import { Button } from '@/components/ui/button';
 
@@ -24,6 +24,7 @@ const secondaryLinks = [
   { href: '/admin/cities', icon: Building2, label: 'Cities & Regions' },
   { href: '/admin/combos', icon: Popcorn, label: 'Food & Drinks' },
   { href: '/admin/vouchers', icon: Ticket, label: 'Vouchers & Offers' },
+  { href: '/admin/payments', icon: Wallet, label: 'UPI Approvals' },
   { href: '/admin/tickets/scan', icon: QrCode, label: 'Ticket Scanner (QR)' },
 ];
 
