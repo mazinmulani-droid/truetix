@@ -3,18 +3,79 @@ import { MapPin, Phone, Monitor, Popcorn, Car } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { API_URL } from '@/lib/constants';
 
+const DEFAULT_CINEMAS = [
+  {
+    id: "cin_1",
+    name: "CLGV Vincom Center Landmark 81",
+    address: "B1 Floor, Vincom Center Landmark 81, 720A Dien Bien Phu, Ward 22, Binh Thanh District",
+    city: "Ho Chi Minh City",
+    hotline: "1900 6017",
+    amenities: ["IMAX", "Free Parking", "Popcorn Stand"],
+    halls: [
+      { id: "hall_1", name: "Screen 1", screenType: "IMAX" },
+      { id: "hall_2", name: "Screen 2", screenType: "2D" },
+      { id: "hall_3", name: "Screen 3", screenType: "3D" }
+    ]
+  },
+  {
+    id: "cin_2",
+    name: "CLGV Aeon Mall Tan Phu Celadon",
+    address: "3rd Floor, Aeon Mall Tan Phu Celadon, 30 Bo Bao Tan Thang, Son Ky Ward, Tan Phu District",
+    city: "Ho Chi Minh City",
+    hotline: "1900 6017",
+    amenities: ["Free Parking", "Popcorn Stand"],
+    halls: [
+      { id: "hall_4", name: "Screen 1", screenType: "2D" },
+      { id: "hall_5", name: "Screen 2", screenType: "4DX" }
+    ]
+  },
+  {
+    id: "cin_3",
+    name: "CLGV Vincom Mega Mall Royal City",
+    address: "B2- R4, Vincom Mega Mall Royal City, 72A Nguyen Trai, Thanh Xuan District",
+    city: "Hanoi",
+    hotline: "1900 6017",
+    amenities: ["Free Parking", "VIP Lounge"],
+    halls: [
+      { id: "hall_6", name: "Screen 1", screenType: "2D" }
+    ]
+  },
+  {
+    id: "cin_4",
+    name: "CLGV Vincom Mega Mall Times City",
+    address: "B1 Floor, Times City, 458 Minh Khai, Hai Ba Trung District",
+    city: "Hanoi",
+    hotline: "1900 6017",
+    amenities: ["Free Parking"],
+    halls: [
+      { id: "hall_7", name: "Screen 1", screenType: "2D" }
+    ]
+  },
+  {
+    id: "cin_5",
+    name: "CLGV Vincom Plaza Da Nang",
+    address: "4th Floor, Vincom Plaza, Ngo Quyen, An Hai Bac Ward, Son Tra District",
+    city: "Da Nang",
+    hotline: "1900 6017",
+    amenities: ["Free Parking", "Popcorn Stand"],
+    halls: [
+      { id: "hall_8", name: "Screen 1", screenType: "2D" }
+    ]
+  }
+];
+
 async function getCinema(id: string) {
   try {
     const res = await fetch(`${API_URL}/cinemas/${id}`, { next: { revalidate: 0 } });
     if (!res.ok) {
-      if (res.status === 404) return null;
+      if (res.status === 404) return DEFAULT_CINEMAS.find(c => c.id === id) || null;
       throw new Error('Failed to fetch cinema');
     }
     const json = await res.json();
-    return json.data;
+    return json.data || DEFAULT_CINEMAS.find(c => c.id === id) || null;
   } catch (error) {
     console.error(error);
-    return null;
+    return DEFAULT_CINEMAS.find(c => c.id === id) || null;
   }
 }
 

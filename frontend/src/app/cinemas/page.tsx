@@ -3,15 +3,54 @@ import { Card, CardContent } from '@/components/ui/card';
 import { MapPin, Phone } from 'lucide-react';
 import { API_URL } from '@/lib/constants';
 
+const DEFAULT_CINEMAS = [
+  {
+    id: "cin_1",
+    name: "CLGV Vincom Center Landmark 81",
+    address: "B1 Floor, Vincom Center Landmark 81, 720A Dien Bien Phu, Ward 22, Binh Thanh District",
+    city: "Ho Chi Minh City",
+    hotline: "1900 6017",
+  },
+  {
+    id: "cin_2",
+    name: "CLGV Aeon Mall Tan Phu Celadon",
+    address: "3rd Floor, Aeon Mall Tan Phu Celadon, 30 Bo Bao Tan Thang, Son Ky Ward, Tan Phu District",
+    city: "Ho Chi Minh City",
+    hotline: "1900 6017",
+  },
+  {
+    id: "cin_3",
+    name: "CLGV Vincom Mega Mall Royal City",
+    address: "B2- R4, Vincom Mega Mall Royal City, 72A Nguyen Trai, Thanh Xuan District",
+    city: "Hanoi",
+    hotline: "1900 6017",
+  },
+  {
+    id: "cin_4",
+    name: "CLGV Vincom Mega Mall Times City",
+    address: "B1 Floor, Times City, 458 Minh Khai, Hai Ba Trung District",
+    city: "Hanoi",
+    hotline: "1900 6017",
+  },
+  {
+    id: "cin_5",
+    name: "CLGV Vincom Plaza Da Nang",
+    address: "4th Floor, Vincom Plaza, Ngo Quyen, An Hai Bac Ward, Son Tra District",
+    city: "Da Nang",
+    hotline: "1900 6017",
+  }
+];
+
 async function getCinemas() {
   try {
     const res = await fetch(`${API_URL}/cinemas`, { next: { revalidate: 60 } });
-    if (!res.ok) return [];
+    if (!res.ok) return DEFAULT_CINEMAS;
     const json = await res.json();
-    return Array.isArray(json.data) ? json.data : [];
+    const data = Array.isArray(json.data) ? json.data : [];
+    return data.length > 0 ? data : DEFAULT_CINEMAS;
   } catch (error) {
-    console.error('Failed to fetch cinemas', error);
-    return [];
+    console.error('Failed to fetch cinemas, using defaults', error);
+    return DEFAULT_CINEMAS;
   }
 }
 
