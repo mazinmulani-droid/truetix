@@ -20,11 +20,20 @@ const userIcon = L.icon({
   iconAnchor: [12, 41],
 });
 
-function MapUpdater({ center }: { center: [number, number] }) {
+function MapUpdater({ center, cinemas, userLoc }: { center: [number, number], cinemas: any[], userLoc: any }) {
   const map = useMap();
   useEffect(() => {
-    map.setView(center, map.getZoom());
-  }, [center, map]);
+    if (userLoc && cinemas.length > 0) {
+      const bounds = L.latLngBounds([[userLoc.lat, userLoc.lng]]);
+      // Add up to 3 closest cinemas to bounds
+      cinemas.slice(0, 3).forEach(c => {
+        if (c.lat && c.lng) bounds.extend([c.lat, c.lng]);
+      });
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 13 });
+    } else {
+      map.setView(center, 11);
+    }
+  }, [center, cinemas, userLoc, map]);
   return null;
 }
 
@@ -44,7 +53,7 @@ export default function CinemaMap({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         />
-        <MapUpdater center={mapCenter} />
+        <MapUpdater center={mapCenter} cinemas={cinemas} userLoc={userLoc} />
         
         {userLoc && (
           <Marker position={[userLoc.lat, userLoc.lng]} icon={userIcon}>

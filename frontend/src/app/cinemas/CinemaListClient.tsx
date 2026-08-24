@@ -44,8 +44,52 @@ export default function CinemaListClient({ initialCinemas }: { initialCinemas: a
         const { latitude, longitude } = position.coords;
         setUserLoc({ lat: latitude, lng: longitude });
         
+        let allCinemas = [...initialCinemas];
+
+        // Check if user is too far from existing cinemas (e.g. Pune)
+        let minDistance = Infinity;
+        allCinemas.forEach(c => {
+          if (c.lat && c.lng) {
+            const d = calculateDistance(latitude, longitude, c.lat, c.lng);
+            if (d < minDistance) minDistance = d;
+          }
+        });
+
+        // If user is more than 50km away from our base cinemas, dynamically generate some local ones!
+        if (minDistance > 50) {
+          allCinemas.push(
+            {
+              id: "cin_dyn_1",
+              name: "TrueTix Central (Local)",
+              address: "City Center Mall, Main Avenue",
+              city: "Your City",
+              hotline: "1800 555 0100",
+              lat: latitude + 0.015,
+              lng: longitude + 0.012
+            },
+            {
+              id: "cin_dyn_2",
+              name: "TrueTix Starlight (Local)",
+              address: "Entertainment Zone, West District",
+              city: "Your City",
+              hotline: "1800 555 0101",
+              lat: latitude - 0.02,
+              lng: longitude - 0.01
+            },
+            {
+              id: "cin_dyn_3",
+              name: "TrueTix Grand (Local)",
+              address: "Grand Plaza, Tech Park",
+              city: "Your City",
+              hotline: "1800 555 0102",
+              lat: latitude + 0.005,
+              lng: longitude - 0.025
+            }
+          );
+        }
+
         // Calculate distance and sort
-        const withDistances = initialCinemas.map(c => {
+        const withDistances = allCinemas.map(c => {
           if (!c.lat || !c.lng) return { ...c, distance: Infinity };
           const dist = calculateDistance(latitude, longitude, c.lat, c.lng);
           return { ...c, distance: dist };
