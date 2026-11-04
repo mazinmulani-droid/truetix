@@ -1,57 +1,78 @@
-import { Controller, Get, Post, Body, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Query, BadRequestException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { PaymentService } from './payment.service';
 
-@ApiTags('Payment Gateways (VNPAY & VietQR)')
+@ApiTags('Payment Gateways (Mock Sandbox)')
 @Controller('payments')
 export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
 
-  // ==========================================
-  // MOCK VNPAY ENDPOINTS
-  // ==========================================
-
-  @Post('vnpay/create-url')
-  @ApiOperation({ summary: 'Khởi tạo Mock VNPAY Sandbox URL & chuỗi payload mã QR thanh toán' })
-  async createVnpayUrl(@Body() body: { bookingId: string; amount: number; orderInfo?: string }) {
-    return this.paymentService.createVnpayPaymentUrl(body.bookingId, body.amount, body.orderInfo);
+  @Post('mock/create-url')
+  @ApiOperation({ summary: 'Create signed mock payment gateway URL and QR code' })
+  async createMockPaymentUrl(@Body() body: { bookingId: string; amount: number }) {
+    if (!body?.bookingId || body.amount === undefined) {
+      throw new BadRequestException('bookingId and amount are required');
+    }
+    return this.paymentService.createMockPaymentUrl(body.bookingId, Number(body.amount));
   }
 
-  @Get('vnpay/callback')
-  @ApiOperation({ summary: 'Xử lý IPN / Redirect callback từ Mock VNPAY Gateway' })
-  async handleVnpayCallback(
-    @Query('vnp_ResponseCode') vnp_ResponseCode: string,
-    @Query('vnp_TxnRef') vnp_TxnRef: string,
-    @Query('vnp_Amount') vnp_Amount?: string,
-  ) {
-    return this.paymentService.handleVnpayCallback(vnp_ResponseCode, vnp_TxnRef, vnp_Amount);
-  }
-
-  // ==========================================
-  // VIETQR NAPAS247 ENDPOINTS (Phase 6 Dev)
-  // ==========================================
-
-  @Post('vietqr/create-url')
-  @ApiOperation({ summary: 'Khởi tạo mã VietQR Napas247 (Dev Environment)' })
-  async createVietQrUrl(@Body() body: { bookingId: string; amount: number; orderInfo?: string }) {
-    return this.paymentService.createVietQrPaymentUrl(body.bookingId, body.amount, body.orderInfo);
-  }
-
-  @Post('vietqr/callback')
-  @ApiOperation({ summary: 'Xử lý xác nhận thanh toán thành công qua VietQR Callback' })
-  async handleVietQrCallbackPost(
-    @Body() body: { bookingId: string; status?: string; txnId?: string },
-  ) {
-    return this.paymentService.handleVietQrCallback(body.bookingId, body.status || 'SUCCESS', body.txnId);
-  }
-
-  @Get('vietqr/callback')
-  @ApiOperation({ summary: 'Xử lý IPN / Redirect callback từ VietQR' })
-  async handleVietQrCallbackGet(
+  @Get('mock/callback')
+  @ApiOperation({ summary: 'Mock payment gateway callback handler' })
+  @ApiQuery({ name: 'bookingId', required: true })
+  @ApiQuery({ name: 'amount', required: true })
+  @ApiQuery({ name: 'status', required: false, description: 'SUCCESS or CANCELLED' })
+  @ApiQuery({ name: 'signature', required: false })
+  async handleMockCallback(
     @Query('bookingId') bookingId: string,
-    @Query('status') status?: string,
-    @Query('txnId') txnId?: string,
+    @Query('amount') amount: string,
+    @Query('status') status = 'SUCCESS',
+    @Query('signature') signature?: string,
   ) {
-    return this.paymentService.handleVietQrCallback(bookingId, status || 'SUCCESS', txnId);
+    if (!bookingId || !amount) {
+      throw new BadRequestException('bookingId and amount are required');
+    }
+
+    if (status === 'CANCELLED' || status === 'FAILED') {
+      return this.paymentService.processFailedPayment(bookingId);
+    }
+
+    return this.paymentService.processSuccessfulPayment(
+      bookingId,
+      Number(amount),
+      signature,
+      'MOCK_GATEWAY',
+    );
+  }
+
+  // Backwards compatibility alias for inpay / vnpay mock gateway
+  @Get('inpay/callback')
+  @Get('vnpay/callback')
+  @ApiOperation({ summary: 'Legacy alias for mock gateway callback' })
+  async handleLegacyCallback(
+    @Query('inp_ResponseCode') inpCode?: string,
+    @Query('inp_TxnRef') inpRef?: string,
+    @Query('inp_Amount') inpAmt?: string,
+    @Query('vnp_ResponseCode') vnpCode?: string,
+    @Query('vnp_TxnRef') vnpRef?: string,
+    @Query('vnp_Amount') vnpAmt?: string,
+  ) {
+    const code = inpCode || vnpCode || '00';
+    const bookingId = inpRef || vnpRef;
+    const amount = inpAmt || vnpAmt;
+
+    if (!bookingId || !amount) {
+      throw new BadRequestException('Missing booking reference or amount');
+    }
+
+    if (code !== '00') {
+      return this.paymentService.processFailedPayment(bookingId);
+    }
+
+    return this.paymentService.processSuccessfulPayment(
+      bookingId,
+      Number(amount),
+      undefined,
+      'MOCK_GATEWAY',
+    );
   }
 }

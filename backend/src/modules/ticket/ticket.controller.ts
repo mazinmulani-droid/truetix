@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Headers, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Headers, UseGuards, Req, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiHeader } from '@nestjs/swagger';
 import { TicketService } from './ticket.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -11,7 +11,7 @@ export class TicketController {
   @Get('my-tickets')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Khách hàng xem danh sách vé điện tử đã mua' })
+  @ApiOperation({ summary: 'View purchased e-tickets for current authenticated user' })
   async getMyTickets(@Req() req: any) {
     return this.ticketService.getUserTickets(req.user.id);
   }
@@ -19,18 +19,23 @@ export class TicketController {
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Xem chi tiết vé điện tử & hóa đơn' })
+  @ApiOperation({ summary: 'View e-ticket details (with ownership check)' })
   async getTicketDetail(@Req() req: any, @Param('id') id: string) {
     return this.ticketService.getTicketDetail(id, req.user.id);
   }
 
   @Post('verify-qr')
-  @ApiOperation({ summary: 'Máy quét cổng soát vé QR rạp CGV (HMAC Validation)' })
-  @ApiHeader({ name: 'X-Scanner-Key', description: 'Secret Key cấp cho thiết bị máy quét turnstile' })
+  @ApiOperation({ summary: 'Verify and check-in QR ticket at cinema turnstile' })
+  @ApiHeader({ name: 'X-Scanner-Key', description: 'Secret Key issued to turnstile scanner device' })
   async verifyQrTicket(
     @Headers('x-scanner-key') scannerKey: string,
-    @Body('qrToken') qrToken: string,
+    @Body('qrToken') qrToken?: string,
+    @Body('qrPayload') qrPayload?: string,
   ) {
-    return this.ticketService.verifyQrTicket(scannerKey, qrToken);
+    const token = qrToken || qrPayload;
+    if (!token) {
+      throw new BadRequestException('qrToken or qrPayload is required');
+    }
+    return this.ticketService.verifyQrTicket(scannerKey, token);
   }
 }

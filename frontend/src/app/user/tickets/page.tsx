@@ -17,31 +17,33 @@ export default function MyTicketsPage() {
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
 
     const fetchTickets = async () => {
       try {
-        let combinedTickets = [];
+        const res = await api.get('/tickets/my-tickets');
+        const rawList = Array.isArray(res?.data) ? res.data : (res?.data?.tickets || []);
         
-        // 1. Fetch offline tickets
-        try {
-          const offlineTickets = JSON.parse(localStorage.getItem('truetix-offline-tickets') || '[]');
-          combinedTickets = [...offlineTickets];
-        } catch (e) {
-          console.error('Failed to parse offline tickets', e);
-        }
+        const formattedTickets = rawList.map((t: any) => ({
+          id: t.ticketId || t.id,
+          seatId: t.seatId,
+          seats: [t.seatId],
+          status: t.status,
+          qrCodeData: t.qrToken,
+          movieTitle: t.movieTitle,
+          posterUrl: t.posterUrl,
+          cinemaName: t.cinemaName,
+          screenName: t.hallName,
+          startTime: t.startTime ? new Date(t.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '19:30',
+          endTime: t.endTime ? new Date(t.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '21:30',
+          showDate: t.startTime,
+          combos: t.combos,
+        }));
 
-        // 2. Try fetching backend tickets
-        try {
-          const res = await api.get('/tickets/my-tickets');
-          if (res.success && res.data.tickets) {
-            combinedTickets = [...combinedTickets, ...res.data.tickets];
-          }
-        } catch (apiError) {
-          console.warn('Backend tickets offline, displaying local tickets only');
-        }
-        
-        setTickets(combinedTickets);
+        setTickets(formattedTickets);
       } catch (error) {
         console.error('Failed to fetch tickets:', error);
       } finally {

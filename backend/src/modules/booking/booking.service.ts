@@ -3,6 +3,7 @@ import {
   ConflictException,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
@@ -10,6 +11,7 @@ import { WebsocketGateway } from '../websocket/websocket.gateway';
 import { HoldSeatDto } from './dto/hold-seat.dto';
 import { CheckoutBookingDto } from './dto/checkout-booking.dto';
 import { ConfigService } from '@nestjs/config';
+import { TicketTokenUtil } from '../../common/utils/ticket-token.util';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -22,14 +24,15 @@ export class BookingService {
   ) {}
 
   /**
-   * Giữ ghế tạm thời trong 10 phút (Redis Redlock Tier 1)
+   * Temporarily hold seats with Redis Redlock (10-minute TTL)
+   * If any seat fails to acquire, atomically roll back previously acquired seats.
    */
   async holdSeats(userId: string, dto: HoldSeatDto) {
     const showtimeId = dto.showtimeId;
     const seatIds = dto.seatIds || [];
 
     if (!showtimeId || seatIds.length === 0) {
-      throw new BadRequestException('Please provide showtimeId and list of seatIds');
+      throw new BadRequestException('Please provide showtimeId and a list of seatIds');
     }
 
     const showtime = await this.prisma.showtime.findUnique({ where: { id: showtimeId } });
@@ -42,12 +45,12 @@ export class BookingService {
     }
 
     // Verify seat status from PostgreSQL database before holding
-    const existingSeats = (await this.prisma.showtimeSeat.findMany({
+    const existingSeats = await this.prisma.showtimeSeat.findMany({
       where: {
         showtimeId,
         seatId: { in: seatIds },
       },
-    })) || [];
+    });
 
     for (const seat of existingSeats) {
       if (seat.status === 'SOLD') {
@@ -66,12 +69,14 @@ export class BookingService {
 
     const lockedSeats: string[] = [];
 
+    // Attempt to acquire distributed lock for each seat
     for (const seatId of seatIds) {
       const acquired = await this.redisService.acquireSeatLock(showtimeId, seatId, userId, 600);
       if (!acquired) {
-        // Rollback already acquired locks
+        // Rollback all seats acquired in this batch using atomic compare-and-delete
         for (const locked of lockedSeats) {
-          await this.redisService.releaseSeatLock(showtimeId, locked);
+          await this.redisService.releaseSeatLock(showtimeId, locked, userId);
+          this.websocketGateway.broadcastSeatState(showtimeId, locked, 'AVAILABLE');
         }
         throw new ConflictException({
           code: 'SEAT_ALREADY_HELD',
@@ -83,9 +88,9 @@ export class BookingService {
     }
 
     const expiresAt = new Date(Date.now() + 600 * 1000).toISOString();
-    const reservationId = `res_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
+    const reservationId = `res_${userId.substring(0, 8)}_${Date.now()}`;
 
-    // Broadcast event to Socket.io room
+    // Broadcast seat status update to Socket.IO clients
     lockedSeats.forEach((seatId) => {
       this.websocketGateway.broadcastSeatState(showtimeId, seatId, 'HOLDING', userId, expiresAt);
     });
@@ -101,26 +106,48 @@ export class BookingService {
 
   /**
    * Release temporarily held seats
+   * Uses Lua script to ensure users can only release seats they own
    */
   async releaseSeats(userId: string, dto: HoldSeatDto) {
     const { showtimeId, seatIds = [] } = dto;
+    const releasedSeats: string[] = [];
+
     if (showtimeId && seatIds.length > 0) {
       for (const seatId of seatIds) {
-        await this.redisService.releaseSeatLock(showtimeId, seatId);
-        this.websocketGateway.broadcastSeatState(showtimeId, seatId, 'AVAILABLE', null, null);
+        const released = await this.redisService.releaseSeatLock(showtimeId, seatId, userId);
+        if (released) {
+          releasedSeats.push(seatId);
+          this.websocketGateway.broadcastSeatState(showtimeId, seatId, 'AVAILABLE', null, null);
+        }
       }
     }
-    return { success: true, releasedSeats: seatIds };
+    return { success: true, releasedSeats };
   }
 
   /**
    * Checkout ticket and F&B order
+   * Verifies reservation ownership and expiry in Redis before creating booking in PostgreSQL.
    */
   async checkout(userId: string, dto: CheckoutBookingDto) {
     const { showtimeId, seatIds, paymentMethod, comboIds, voucherCode, pointsToUse = 0 } = dto;
 
+    if (!showtimeId || !seatIds || seatIds.length === 0) {
+      throw new BadRequestException('showtimeId and seatIds are required');
+    }
+
+    // 1. Verify reservation ownership and expiry in Redis
+    for (const seatId of seatIds) {
+      const lockHolder = await this.redisService.getSeatLockHolder(showtimeId, seatId);
+      if (lockHolder !== userId) {
+        throw new ConflictException({
+          code: 'SEAT_LOCK_EXPIRED_OR_NOT_OWNED',
+          message: `Seat ${seatId} hold has expired or is not reserved by you. Please select your seats again.`,
+        });
+      }
+    }
+
     return this.prisma.$transaction(async (tx) => {
-      // 1. Verify showtime
+      // 2. Verify showtime
       const showtime = await tx.showtime.findUnique({
         where: { id: showtimeId },
         include: { movie: true, cinema: true, hall: true },
@@ -133,7 +160,7 @@ export class BookingService {
         throw new BadRequestException('This showtime has already started or ended. Cannot complete checkout.');
       }
 
-      // 2. Lock seats in PostgreSQL
+      // 3. Lock check in PostgreSQL
       const seats = await tx.showtimeSeat.findMany({
         where: {
           showtimeId,
@@ -147,18 +174,18 @@ export class BookingService {
 
       for (const seat of seats) {
         if (seat.status === 'SOLD') {
-          throw new ConflictException(`Seat ${seat.seatId} has been purchased by another customer`);
+          throw new ConflictException(`Seat ${seat.seatId} has already been purchased by another customer`);
         }
       }
 
-      // 3. Calculate tickets total
+      // 4. Calculate tickets total
       let ticketTotal = 0;
       seats.forEach((seat) => {
         const price = Math.round(showtime.basePrice * (seat.priceModifier || 1.0));
         ticketTotal += price;
       });
 
-      // 4. Calculate F&B Combos total
+      // 5. Calculate F&B Combos total
       let comboTotal = 0;
       const comboRecordsToInsert: { comboId: string; quantity: number; price: number }[] = [];
 
@@ -180,7 +207,7 @@ export class BookingService {
       let discountAmount = 0;
       let appliedVoucherId: string | undefined = undefined;
 
-      // 5. Apply discount voucher
+      // 6. Apply discount voucher
       if (voucherCode) {
         const voucher = await tx.voucher.findUnique({ where: { code: voucherCode.toUpperCase() } });
         if (voucher && voucher.status === 'ACTIVE' && new Date() <= voucher.expiresAt) {
@@ -199,14 +226,14 @@ export class BookingService {
         }
       }
 
-      // 6. Apply loyalty reward points
+      // 7. Apply loyalty reward points
       const user = await tx.user.findUnique({ where: { id: userId } });
       if (!user) throw new NotFoundException('User does not exist');
 
       let pointsUsed = 0;
       if (pointsToUse > 0) {
         if (user.points < pointsToUse) {
-          throw new BadRequestException('Insufficient ClGV Rewards points');
+          throw new BadRequestException('Insufficient loyalty points');
         }
         const pointDiscount = pointsToUse * 1000;
         discountAmount += pointDiscount;
@@ -216,15 +243,15 @@ export class BookingService {
       // Ensure total after discount >= 0
       const finalAmount = Math.max(0, grandTotal - discountAmount);
 
-      // 7. Payment method processing (CGV_CARD, VNPAY, VIETQR)
+      // 8. Payment method processing
       let bookingStatus: 'PENDING_PAYMENT' | 'PAID' = 'PENDING_PAYMENT';
       let paymentUrl: string | undefined = undefined;
 
       if (paymentMethod === 'CGV_CARD') {
         if (user.cgvCardBalance < finalAmount) {
-          throw new BadRequestException('Insufficient ClGV Card wallet balance');
+          throw new BadRequestException('Insufficient card wallet balance');
         }
-        // Deduct from ClGV Card wallet
+        // Deduct from card wallet
         await tx.user.update({
           where: { id: userId },
           data: {
@@ -237,25 +264,20 @@ export class BookingService {
             userId,
             amount: finalAmount,
             type: 'SPEND',
-            description: `Payment for film tickets showtime ${showtime.id}`,
+            description: `Payment for movie tickets showtime ${showtime.id}`,
           },
         });
         bookingStatus = 'PAID';
-      } else if (paymentMethod === 'VIETQR') {
-        const bankId = '970423';
-        const accountNo = '1234567890';
-        const accountName = 'CLGV FILM TICKET PLATFORM';
-        paymentUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${finalAmount}&accountName=${encodeURIComponent(accountName)}`;
       } else {
-        // MOCK VNPAY Sandbox URL
+        // Standard Mock Gateway URL
         const mockHost = this.configService.get<string>('MOCK_VNPAY_HOST', 'http://localhost:4000');
-        paymentUrl = `${mockHost}/api/v1/payments/vnpay/mock-gateway?orderId=TEMP&amount=${finalAmount}`;
+        paymentUrl = `${mockHost}/api/v1/payments/mock/gateway?bookingId=TEMP&amount=${finalAmount}`;
       }
 
-      // 8. Tính điểm CGV Rewards thưởng (1 điểm cho mỗi 1.000 VNĐ chi tiêu)
+      // 9. Calculate rewards points
       const pointsEarned = Math.floor(finalAmount / 1000);
 
-      // 9. Tạo đơn hàng Booking
+      // 10. Create Booking record
       const booking = await tx.booking.create({
         data: {
           userId,
@@ -271,23 +293,16 @@ export class BookingService {
         },
       });
 
-      // 10. Cập nhật lại Payment URL chính xác với booking.id
-      if (paymentMethod === 'VNPAY' && paymentUrl) {
+      // Update payment URL with real booking id
+      if (paymentUrl && paymentUrl.includes('TEMP')) {
         paymentUrl = paymentUrl.replace('TEMP', booking.id);
-        await tx.booking.update({
-          where: { id: booking.id },
-          data: { paymentUrl },
-        });
-      } else if (paymentMethod === 'VIETQR' && paymentUrl) {
-        const addInfo = `CLGV_${booking.id.substring(0, 8)}`;
-        paymentUrl = `${paymentUrl}&addInfo=${encodeURIComponent(addInfo)}`;
         await tx.booking.update({
           where: { id: booking.id },
           data: { paymentUrl },
         });
       }
 
-      // 11. Tạo thông tin Chi tiết Bắp nước (BookingCombo)
+      // 11. Create BookingCombo records
       if (comboRecordsToInsert.length > 0) {
         await tx.bookingCombo.createMany({
           data: comboRecordsToInsert.map((c) => ({
@@ -299,18 +314,29 @@ export class BookingService {
         });
       }
 
-      // 12. Tạo Vé điện tử & QR Ticket Token (HMAC-SHA256)
-      const hmacSecret = this.configService.get<string>('TICKET_HMAC_SECRET', 'clgv_hmac_qr_secret_key_2026');
+      // 12. Create electronic tickets with standardized HMAC-SHA256 QR tokens
+      const hmacSecret = this.configService.get<string>('TICKET_HMAC_SECRET', 'truetix_hmac_qr_secret_key_2026');
       const ticketRecordsToInsert = seatIds.map((seatId) => {
-        const payload = `${booking.id}:${userId}:${showtimeId}:${seatId}:${Date.now()}`;
-        const signature = crypto.createHmac('sha256', hmacSecret).update(payload).digest('hex');
-        const qrToken = Buffer.from(JSON.stringify({ payload, signature })).toString('base64url');
+        const ticketId = crypto.randomUUID();
+        const expUnix = Math.floor(new Date(showtime.endTime).getTime() / 1000);
+        const qrToken = TicketTokenUtil.generateToken(
+          {
+            ticketId,
+            bookingId: booking.id,
+            showtimeId,
+            seatId,
+            userId,
+            exp: expUnix,
+          },
+          hmacSecret,
+        );
 
         return {
+          id: ticketId,
           bookingId: booking.id,
           seatId,
           qrToken,
-          status: bookingStatus === 'PAID' ? ('UNUSED' as const) : ('UNUSED' as const),
+          status: 'UNUSED' as const,
         };
       });
 
@@ -318,16 +344,15 @@ export class BookingService {
         data: ticketRecordsToInsert,
       });
 
-      // 13. Nếu thanh toán ngay bằng CGV_CARD: Chuyển ghế sang SOLD & giải phóng Redis lock
+      // 13. If immediately paid (e.g. CGV_CARD), mark seats as SOLD in DB and release Redis lock
       if (bookingStatus === 'PAID') {
         await tx.showtimeSeat.updateMany({
           where: { showtimeId, seatId: { in: seatIds } },
           data: { status: 'SOLD' },
         });
 
-        // Xóa lock Redis & broadcast trạng thái SOLD
         for (const seatId of seatIds) {
-          await this.redisService.releaseSeatLock(showtimeId, seatId);
+          await this.redisService.forceReleaseSeatLock(showtimeId, seatId);
           this.websocketGateway.broadcastSeatState(showtimeId, seatId, 'SOLD');
         }
       }
@@ -345,7 +370,7 @@ export class BookingService {
   }
 
   /**
-   * Lấy lịch sử đặt vé cá nhân
+   * Get user booking history
    */
   async getUserBookings(userId: string) {
     return this.prisma.booking.findMany({
@@ -359,5 +384,31 @@ export class BookingService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  /**
+   * Get booking details with ownership verification
+   */
+  async getBookingById(userId: string, bookingId: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        showtime: {
+          include: { movie: true, cinema: true, hall: true },
+        },
+        tickets: true,
+        combos: { include: { combo: true } },
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException(`Booking ID not found: ${bookingId}`);
+    }
+
+    if (booking.userId !== userId) {
+      throw new ForbiddenException('You do not have permission to view this booking');
+    }
+
+    return booking;
   }
 }

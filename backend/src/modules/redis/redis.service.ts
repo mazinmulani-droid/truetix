@@ -9,8 +9,17 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   private subClient: Redis | null = null;
   private isConnected = false;
 
-  // In-memory fallback map cho môi trường dev khi Redis chưa sẵn sàng
+  // In-memory fallback map for development/testing when Redis is unreachable
   private readonly memoryStore = new Map<string, { value: string; expiresAt: number }>();
+
+  // Atomic Compare-And-Delete Lua script: deletes lock only if stored owner token matches ARGV[1]
+  private readonly LUA_COMPARE_AND_DELETE = `
+    if redis.call("get", KEYS[1]) == ARGV[1] then
+      return redis.call("del", KEYS[1])
+    else
+      return 0
+    end
+  `;
 
   private onSeatExpiredCallback: ((showtimeId: string, seatId: string) => void) | null = null;
   private fallbackInterval: NodeJS.Timeout | null = null;
@@ -27,7 +36,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         port,
         retryStrategy: (times) => {
           if (times > 3) {
-            this.logger.warn('Chuyển sang In-Memory Fallback Store do không kết nối được Redis');
+            this.logger.warn('Falling back to In-Memory store because Redis connection could not be established');
             return null;
           }
           return Math.min(times * 100, 2000);
@@ -37,14 +46,14 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
       this.client.connect().then(() => {
         this.isConnected = true;
-        this.logger.log(`Kết nối thành công Redis tại ${host}:${port}`);
+        this.logger.log(`Connected to Redis at ${host}:${port}`);
         this.setupKeyspaceSubscriber(host, port);
       }).catch((err) => {
-        this.logger.warn(`Redis connection failed: ${err.message}. Sử dụng In-Memory Fallback.`);
+        this.logger.warn(`Redis connection failed: ${err.message}. Using In-Memory fallback store.`);
         this.setupFallbackInterval();
       });
     } catch (error) {
-      this.logger.warn('Sử dụng In-Memory Fallback Store cho Redis');
+      this.logger.warn('Using In-Memory fallback store for Redis');
       this.setupFallbackInterval();
     }
   }
@@ -57,7 +66,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     try {
       this.subClient = new Redis({ host, port, lazyConnect: true });
       this.subClient.connect().then(() => {
-        // Bật keyspace notifications cho các key hết hạn (Ex)
+        // Enable keyspace notifications for expired keys (Ex)
         this.client?.config('SET', 'notify-keyspace-events', 'Ex').catch(() => {});
         this.subClient?.subscribe('__keyevent@0__:expired').catch(() => {});
         
@@ -92,7 +101,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
           }
         }
       }
-    }, 1000); // Kiểm tra mỗi giây
+    }, 1000);
   }
 
   onModuleDestroy() {
@@ -104,12 +113,13 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Đặt khóa phân tán Redis Redlock cho ghế (SET key value NX EX ttlSeconds)
+   * Atomically acquires a distributed seat lock:
+   * SET lock:seat:{showtimeId}:{seatId} {ownerToken} NX EX {ttlSeconds}
    */
-  async acquireSeatLock(showtimeId: string, seatId: string, userId: string, ttlSeconds = 600): Promise<boolean> {
+  async acquireSeatLock(showtimeId: string, seatId: string, ownerToken: string, ttlSeconds = 600): Promise<boolean> {
     const key = `lock:seat:${showtimeId}:${seatId}`;
     if (this.isConnected && this.client) {
-      const res = await this.client.set(key, userId, 'EX', ttlSeconds, 'NX');
+      const res = await this.client.set(key, ownerToken, 'EX', ttlSeconds, 'NX');
       return res === 'OK';
     }
 
@@ -119,14 +129,36 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     if (existing && existing.expiresAt > now) {
       return false;
     }
-    this.memoryStore.set(key, { value: userId, expiresAt: now + ttlSeconds * 1000 });
+    this.memoryStore.set(key, { value: ownerToken, expiresAt: now + ttlSeconds * 1000 });
     return true;
   }
 
   /**
-   * Giải phóng khóa Redlock ghế
+   * Atomically releases a seat lock using a Lua script (compare-and-delete).
+   * Deletes the key ONLY if the stored value matches ownerToken.
    */
-  async releaseSeatLock(showtimeId: string, seatId: string): Promise<boolean> {
+  async releaseSeatLock(showtimeId: string, seatId: string, ownerToken: string): Promise<boolean> {
+    const key = `lock:seat:${showtimeId}:${seatId}`;
+    if (this.isConnected && this.client) {
+      const res = await this.client.eval(this.LUA_COMPARE_AND_DELETE, 1, key, ownerToken);
+      return res === 1;
+    }
+
+    const existing = this.memoryStore.get(key);
+    if (!existing) {
+      return true;
+    }
+    if (existing.value === ownerToken) {
+      this.memoryStore.delete(key);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Unconditional release for system-level finalization (e.g. after booking is confirmed PAID in PostgreSQL)
+   */
+  async forceReleaseSeatLock(showtimeId: string, seatId: string): Promise<boolean> {
     const key = `lock:seat:${showtimeId}:${seatId}`;
     if (this.isConnected && this.client) {
       await this.client.del(key);
@@ -137,7 +169,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Lấy người dùng đang giữ ghế
+   * Retrieves the current holder of a seat lock
    */
   async getSeatLockHolder(showtimeId: string, seatId: string): Promise<string | null> {
     const key = `lock:seat:${showtimeId}:${seatId}`;
@@ -152,7 +184,22 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Broadcast sự kiện Pub/Sub
+   * Retrieves remaining TTL in seconds for a seat lock
+   */
+  async getSeatLockTtl(showtimeId: string, seatId: string): Promise<number> {
+    const key = `lock:seat:${showtimeId}:${seatId}`;
+    if (this.isConnected && this.client) {
+      return await this.client.ttl(key);
+    }
+    const existing = this.memoryStore.get(key);
+    if (existing && existing.expiresAt > Date.now()) {
+      return Math.max(0, Math.floor((existing.expiresAt - Date.now()) / 1000));
+    }
+    return -2;
+  }
+
+  /**
+   * Pub/Sub broadcast
    */
   async publish(channel: string, message: string): Promise<number> {
     if (this.isConnected && this.client) {

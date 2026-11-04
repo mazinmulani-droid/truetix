@@ -1,7 +1,8 @@
-"use client";
+'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { useAuthStore } from '@/store/useAuthStore';
 import { api } from '@/lib/axios';
 import { toast } from 'sonner';
@@ -9,141 +10,141 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import Link from 'next/link';
+import { AlertCircle, UserCheck } from 'lucide-react';
 
-function LoginFormContent() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/';
-  const setAuth = useAuthStore((state) => state.setAuth);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.push(redirectUrl);
-    }
-  }, [isAuthenticated, router, redirectUrl]);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const executeLogin = (userObj: any, token: string = 'mock_access_token_' + Date.now()) => {
-    setAuth(userObj, token, 'mock_refresh_token_' + Date.now());
-    toast.success(`Welcome back, ${userObj.fullName}!`);
-    router.push(redirectUrl);
-  };
+  const { setAuth } = useAuthStore();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email || !password) {
+      setError('Please enter both email and password.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
     try {
-      setLoading(true);
       const res: any = await api.post('/auth/login', { email, password });
-      
-      if (res.success && res.data) {
+      if (res && res.data) {
         const { user, accessToken, refreshToken } = res.data;
         setAuth(user, accessToken, refreshToken);
-        toast.success('Logged in successfully');
+        toast.success(`Welcome back, ${user.fullName}!`);
         router.push(redirectUrl);
-        return;
       }
-    } catch (error: any) {
-      // If backend network error or offline, fallback smoothly to local demo authentication
-      const isAdmin = email.toLowerCase().includes('admin');
-      const mockUser = {
-        id: isAdmin ? 'usr_admin_001' : 'usr_cust_' + Math.random().toString(36).substring(2, 8),
-        email: email || (isAdmin ? 'admin@truetix.in' : 'customer@truetix.in'),
-        fullName: isAdmin ? 'TrueTix Administrator' : email.split('@')[0] || 'Customer User',
-        role: (isAdmin ? 'ADMIN' : 'CUSTOMER') as any,
-        membershipTier: (isAdmin ? 'VVIP' : 'MEMBER') as any,
-        points: isAdmin ? 500 : 150,
-        truetixCardBalance: isAdmin ? 5000 : 1000,
-      };
-      executeLogin(mockUser);
+    } catch (err: any) {
+      console.error(err);
+      const errMsg = err?.response?.data?.message || err?.message || 'Invalid email or password.';
+      setError(errMsg);
+      toast.error(errMsg);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleLogin = async () => {
-    // Open Google Sign-In popup simulation
-    const width = 500;
-    const height = 650;
-    const left = window.screenX + (window.outerWidth - width) / 2;
-    const top = window.screenY + (window.outerHeight - height) / 2;
-    const popup = window.open('https://accounts.google.com/signin/v2/identifier?flowName=GlifWebSignIn&flowEntry=ServiceLogin', 'Google Sign-In', `width=${width},height=${height},left=${left},top=${top}`);
-
+  // Quick 1-click login for test demo sessions
+  const handleQuickDemoLogin = (demoEmail: string, demoPass: string) => {
+    setEmail(demoEmail);
+    setPassword(demoPass);
+    // Direct submission
     setLoading(true);
-
-    // Simulate waiting for OAuth redirect / user approval
-    setTimeout(async () => {
-      if (popup && !popup.closed) {
-        popup.close();
-      }
-      
-      try {
-        const mockOAuthEmail = email || `user_${Math.random().toString(36).substring(2, 7)}@gmail.com`;
-        const mockFullName = mockOAuthEmail.split('@')[0].replace(/[^a-zA-Z]/g, ' ') || 'Google User';
-        
-        try {
-          const res: any = await api.post('/auth/oauth/google', {
-            email: mockOAuthEmail,
-            fullName: mockFullName,
-            provider: 'GOOGLE',
-            googleId: `google_${Date.now()}`
-          });
-
-          if (res.success && res.data) {
-            const { user, accessToken, refreshToken } = res.data;
-            setAuth(user, accessToken, refreshToken);
-            toast.success(`Welcome back, ${user.fullName}! Signed in via Google.`);
-            router.push(redirectUrl);
-            return;
-          }
-        } catch (err) {
-          // Fallback for standalone frontend
+    setError('');
+    api
+      .post('/auth/login', { email: demoEmail, password: demoPass })
+      .then((res: any) => {
+        if (res && res.data) {
+          const { user, accessToken, refreshToken } = res.data;
+          setAuth(user, accessToken, refreshToken);
+          toast.success(`Logged in as ${user.fullName}!`);
+          router.push(redirectUrl);
         }
+      })
+      .catch((err: any) => {
+        const msg = err?.response?.data?.message || 'Login failed. Please seed database first.';
+        setError(msg);
+        toast.error(msg);
+      })
+      .finally(() => setLoading(false));
+  };
 
-        const mockUser = {
-          id: 'usr_g_' + Math.random().toString(36).substring(2, 8),
-          email: mockOAuthEmail,
-          fullName: mockFullName,
-          role: 'CUSTOMER' as any,
-          membershipTier: 'MEMBER' as any,
-          points: 200,
-          truetixCardBalance: 500,
-        };
-        executeLogin(mockUser);
-      } finally {
-        setLoading(false);
-      }
-    }, 2500); // Wait 2.5 seconds to simulate the user logging in on the Google popup
+  const handleGoogleLoginDisabled = () => {
+    toast.info('Google OAuth 2.0 is disabled in this environment (provider token signature verification not configured). Please log in using email and password or the 1-click demo accounts below.');
   };
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] p-4">
       <Card className="w-full max-w-md border-border/60 bg-card/90 backdrop-blur-xl">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Log In</CardTitle>
+          <CardTitle className="text-2xl font-bold">Log In to TrueTix</CardTitle>
           <CardDescription>
-            Enter your email and password to access your TrueTix account
+            Enter your credentials or choose a quick demo account to test concurrency.
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
-            <Button 
-              type="button" 
-              variant="outline" 
-              className="w-full flex items-center justify-center gap-3 border-border hover:bg-muted/80"
-              disabled={loading}
-              onClick={handleGoogleLogin}
+            {/* 1-Click Demo Accounts */}
+            <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl space-y-2">
+              <p className="text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wide">
+                <UserCheck className="w-4 h-4" /> 1-Click Demo Accounts:
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-xs border-primary/30 hover:bg-primary/20"
+                  onClick={() => handleQuickDemoLogin('alice@truetix.com', 'Password123!')}
+                  disabled={loading}
+                >
+                  Alice (Customer A)
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-xs border-primary/30 hover:bg-primary/20"
+                  onClick={() => handleQuickDemoLogin('bob@truetix.com', 'Password123!')}
+                  disabled={loading}
+                >
+                  Bob (Customer B)
+                </Button>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="w-full text-xs text-muted-foreground hover:text-white"
+                onClick={() => handleQuickDemoLogin('admin@truetix.com', 'Password123!')}
+                disabled={loading}
+              >
+                Admin (admin@truetix.com)
+              </Button>
+            </div>
+
+            {/* Google OAuth (Honestly Disabled) */}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full flex items-center justify-center gap-3 border-border opacity-70 hover:opacity-100"
+              onClick={handleGoogleLoginDisabled}
             >
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 opacity-50" viewBox="0 0 24 24">
                 <path fill="#EA4335" d="M12 5c1.7 0 3 .7 3.9 1.6l2.9-2.9C17 2 14.7 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z" />
                 <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z" />
                 <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15s.7 5.3 1.9 7.7l3.7-2.9z" />
                 <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16c1.8 3.7 5.6 6.3 10.1 6.3z" />
               </svg>
-              Continue with Google
+              Google Sign-In (OAuth Disabled for Demo)
             </Button>
 
             <div className="relative my-4">
@@ -151,7 +152,7 @@ function LoginFormContent() {
                 <span className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Or with email</span>
+                <span className="bg-card px-2 text-muted-foreground">Or with email & password</span>
               </div>
             </div>
 
@@ -160,45 +161,48 @@ function LoginFormContent() {
               <Input
                 id="email"
                 type="email"
-                placeholder="customer@truetix.in"
-                required
+                placeholder="name@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                required
               />
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+              </div>
               <Input
                 id="password"
                 type="password"
-                placeholder="••••••••••••"
-                required
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                required
               />
             </div>
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Logging in...' : 'Log In'}
+
+            {error && (
+              <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 rounded-lg">
+                <AlertCircle className="w-4 h-4" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <Button type="submit" className="w-full font-bold" disabled={loading}>
+              {loading ? 'Authenticating...' : 'Sign In'}
             </Button>
-            <div className="text-sm text-center text-muted-foreground">
-              Don&apos;t have an account?{' '}
-              <Link href="/register" className="text-primary hover:underline">
-                Register now
-              </Link>
-            </div>
-          </CardFooter>
+          </CardContent>
         </form>
+        <CardFooter className="flex flex-col gap-2">
+          <p className="text-center text-sm text-muted-foreground">
+            Don&apos;t have an account?{' '}
+            <Link href="/register" className="text-primary hover:underline font-semibold">
+              Sign up
+            </Link>
+          </p>
+        </CardFooter>
       </Card>
     </div>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-[calc(100vh-4rem)] p-4">Loading...</div>}>
-      <LoginFormContent />
-    </Suspense>
   );
 }

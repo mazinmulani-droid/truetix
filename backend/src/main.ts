@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import * as express from 'express';
 import { join } from 'path';
@@ -8,9 +8,23 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
+
+  // Validate critical security environment variables on startup
+  const criticalSecrets = ['JWT_SECRET', 'JWT_REFRESH_SECRET', 'TICKET_HMAC_SECRET'];
+  for (const secret of criticalSecrets) {
+    if (!process.env[secret]) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(`CRITICAL: Mandatory security environment variable [${secret}] is not set!`);
+      } else {
+        logger.warn(`Security Notice: [${secret}] is not set in environment. Using development fallback.`);
+      }
+    }
+  }
+
   const app = await NestFactory.create(AppModule);
 
-  // Phục vụ các tập tin ảnh được upload tĩnh tại /uploads
+  // Serve uploaded images statically at /uploads
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 
   // Set Global API Prefix (except root /)
@@ -52,8 +66,8 @@ async function bootstrap() {
 
   const port = process.env.PORT || 4000;
   await app.listen(port, '0.0.0.0');
-  console.log(`🚀 TrueTix Backend Server running on http://0.0.0.0:${port}`);
-  console.log(`📚 Swagger API Docs available at http://0.0.0.0:${port}/api/docs`);
+  logger.log(`🚀 TrueTix Backend Server running on http://0.0.0.0:${port}`);
+  logger.log(`📚 Swagger API Docs available at http://0.0.0.0:${port}/api/docs`);
 }
 
 bootstrap();

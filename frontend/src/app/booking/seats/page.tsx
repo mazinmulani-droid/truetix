@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense, useRef } from 'react';
+import { useEffect, useState, Suspense, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/axios';
 import { toast } from 'sonner';
@@ -8,12 +8,14 @@ import { Clock, Monitor, ChevronRight, Armchair, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBookingStore } from '@/store/useBookingStore';
 import { useAuthStore } from '@/store/useAuthStore';
+import { io, Socket } from 'socket.io-client';
+import { SOCKET_URL } from '@/lib/constants';
 
 interface Seat {
-  id: string; // row + col e.g. A1
+  id: string; // e.g. A1
   row: string;
   col: number;
-  type: 'STANDARD' | 'VIP' | 'COUPLE' | 'BED';
+  type: 'STANDARD' | 'VIP' | 'COUPLE' | 'ACCESSIBLE' | 'EMPTY_SPACE';
   status: 'AVAILABLE' | 'HOLDING' | 'RESERVED' | 'SOLD' | 'BLOCKED';
   priceModifier: number;
   price?: number;
@@ -35,16 +37,15 @@ const generateDefaultMatrix = () => {
       const seatId = `${rowLetter}${c}`;
       const type: 'STANDARD' | 'VIP' | 'COUPLE' = isCouple ? 'COUPLE' : isVip ? 'VIP' : 'STANDARD';
       const priceMod = isCouple ? 1.8 : isVip ? 1.25 : 1.0;
-      const isSold = (rowLetter === 'C' && (c === 4 || c === 5)) || (rowLetter === 'F' && c === 7);
 
       const seatObj: Seat = {
         id: seatId,
         row: rowLetter,
         col: c,
         type: type,
-        status: isSold ? 'SOLD' : 'AVAILABLE',
+        status: 'AVAILABLE',
         priceModifier: priceMod,
-        price: Math.round(250 * priceMod)
+        price: Math.round(250 * priceMod),
       };
 
       rowArr.push(seatObj);
@@ -56,7 +57,7 @@ const generateDefaultMatrix = () => {
   return {
     matrix: { rows: rows.length, cols: 10, grid },
     seatMap,
-    basePrice: 250
+    basePrice: 250,
   };
 };
 
@@ -69,19 +70,100 @@ function SeatsContent() {
   const [seats, setSeats] = useState<Record<string, Seat>>({});
   const [basePrice, setBasePrice] = useState(250);
   const [loading, setLoading] = useState(true);
-  const [secondsRemaining, setSecondsRemaining] = useState(600); // 10-min Redis TTL
-  const [sessionId] = useState(() => `client_${Math.random().toString(36).substring(2, 9)}_${Date.now()}`);
-  
-  const { 
-    selectedSeats, 
-    toggleSeat, 
-    setShowtime, 
-    setReservation 
-  } = useBookingStore();
-  const { isAuthenticated, user } = useAuthStore();
-  const prevSelectedRef = useRef<string[]>([]);
+  const [secondsRemaining, setSecondsRemaining] = useState(600);
+  const [socket, setSocket] = useState<Socket | null>(null);
 
-  // 10-Minute Lock Timer Countdown when seats are selected
+  const { selectedSeats, toggleSeat, setShowtime, setReservation } = useBookingStore();
+  const { isAuthenticated, user, accessToken } = useAuthStore();
+
+  // Load seat matrix and statuses from NestJS backend
+  const loadShowtimeSeats = useCallback(async () => {
+    try {
+      const res = await api.get(`/showtimes/${showtimeId}/seats`);
+      if (res && res.data) {
+        const data = res.data;
+        setBasePrice(data.basePrice || 250);
+        setShowtime(data.movieId || 'mov_1', data.cinemaId || 'cin_1', showtimeId);
+
+        const seatMap: Record<string, Seat> = {};
+        if (Array.isArray(data.seats)) {
+          data.seats.forEach((s: any) => {
+            seatMap[s.seatId] = {
+              id: s.seatId,
+              row: s.row,
+              col: s.col,
+              type: s.type,
+              status: s.status,
+              priceModifier: s.priceModifier || 1.0,
+              price: s.price,
+              heldByUserId: s.heldByUserId,
+            };
+          });
+        }
+
+        if (data.hall?.roomMatrix?.grid) {
+          setMatrix(data.hall.roomMatrix);
+        } else {
+          const fallback = generateDefaultMatrix();
+          setMatrix(fallback.matrix);
+        }
+        setSeats(seatMap);
+        setLoading(false);
+        return;
+      }
+    } catch {
+      // Fallback matrix if backend showtime is demo
+    }
+
+    const fallback = generateDefaultMatrix();
+    setMatrix(fallback.matrix);
+    setSeats(fallback.seatMap);
+    setBasePrice(fallback.basePrice);
+    setShowtime('mov_1', 'cin_1', showtimeId);
+    setLoading(false);
+  }, [showtimeId, setShowtime]);
+
+  // Initial load
+  useEffect(() => {
+    loadShowtimeSeats();
+  }, [loadShowtimeSeats]);
+
+  // Connect to NestJS WebSocket Gateway for real-time seat synchronization
+  useEffect(() => {
+    const s = io(SOCKET_URL, {
+      auth: { token: accessToken || '' },
+      transports: ['websocket', 'polling'],
+    });
+
+    s.on('connect', () => {
+      s.emit('join:showtime', { showtimeId });
+    });
+
+    s.on('seat:state_changed', (payload: { showtimeId: string; seatId: string; status: any; heldByUserId?: string }) => {
+      if (payload.showtimeId === showtimeId) {
+        setSeats((prev) => {
+          const existing = prev[payload.seatId];
+          if (!existing) return prev;
+          return {
+            ...prev,
+            [payload.seatId]: {
+              ...existing,
+              status: payload.status,
+              heldByUserId: payload.heldByUserId,
+            },
+          };
+        });
+      }
+    });
+
+    setSocket(s);
+
+    return () => {
+      s.disconnect();
+    };
+  }, [showtimeId, accessToken]);
+
+  // 10-Minute Lock Timer Countdown when seats are held
   useEffect(() => {
     if (selectedSeats.length === 0) {
       setSecondsRemaining(600);
@@ -94,6 +176,7 @@ function SeatsContent() {
           clearInterval(interval);
           toast.error('Seat hold session expired. Please reselect your seats.');
           useBookingStore.setState({ selectedSeats: [] });
+          loadShowtimeSeats();
           return 600;
         }
         return prev - 1;
@@ -101,7 +184,7 @@ function SeatsContent() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [selectedSeats.length]);
+  }, [selectedSeats.length, loadShowtimeSeats]);
 
   const formatTimer = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -109,112 +192,18 @@ function SeatsContent() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  // Sync with Shared Server Lock Store (connects Normal, Incognito, all tabs/windows in real time)
-  const syncServerLocks = async () => {
-    try {
-      const res = await fetch(`/api/seats/sync?showtimeId=${showtimeId}`);
-      const json = await res.json();
-      if (json.success && json.data) {
-        const locks = json.data;
-        setSeats((prev) => {
-          const updated = { ...prev };
-          Object.keys(updated).forEach((seatId) => {
-            const serverLock = locks[seatId];
-            if (serverLock) {
-              updated[seatId] = {
-                ...updated[seatId],
-                status: serverLock.status,
-                heldByUserId: serverLock.heldBy,
-              };
-            } else if (updated[seatId].status === 'HOLDING') {
-              // If it was holding and not in server lock anymore
-              updated[seatId] = {
-                ...updated[seatId],
-                status: 'AVAILABLE',
-                heldByUserId: undefined,
-              };
-            }
-          });
-          return updated;
-        });
-      }
-    } catch (e) {
-      // Ignored
-    }
-  };
-
-  // Initial Matrix Load and 1.5s Polling for Real-Time Concurrency
-  useEffect(() => {
-    const fallback = generateDefaultMatrix();
-    setMatrix(fallback.matrix);
-    setSeats(fallback.seatMap);
-    setBasePrice(fallback.basePrice);
-    setShowtime('mov_1', 'cin_1', showtimeId);
-    setLoading(false);
-
-    syncServerLocks();
-    const interval = setInterval(syncServerLocks, 1200);
-
-    return () => clearInterval(interval);
-  }, [showtimeId, setShowtime]);
-
-  // Sync local selection state to Shared Server Lock store
-  useEffect(() => {
-    const currentIds = selectedSeats.map(s => s.id);
-    const prevIds = prevSelectedRef.current;
-
-    const newlyLocked = currentIds.filter(id => !prevIds.includes(id));
-    const newlyReleased = prevIds.filter(id => !currentIds.includes(id));
-
-    if (newlyLocked.length > 0) {
-      fetch('/api/seats/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          showtimeId,
-          seatIds: newlyLocked,
-          action: 'LOCK',
-          senderId: user?.id || sessionId,
-        }),
-      }).then(syncServerLocks);
-    }
-
-    if (newlyReleased.length > 0) {
-      fetch('/api/seats/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          showtimeId,
-          seatIds: newlyReleased,
-          action: 'RELEASE',
-          senderId: user?.id || sessionId,
-        }),
-      }).then(syncServerLocks);
-    }
-
-    prevSelectedRef.current = currentIds;
-  }, [selectedSeats, showtimeId, sessionId, user?.id]);
-
   const handleSeatClick = async (seat: Seat) => {
     const currentSeat = seats[seat.id] || seat;
-    const isSelected = !!selectedSeats.find(s => s.id === currentSeat.id);
-    const currentUserId = user?.id || sessionId;
+    const isSelected = !!selectedSeats.find((s) => s.id === currentSeat.id);
+    const currentUserId = user?.id;
 
-    // Double Booking / Sold Seat Click Protection
     if (currentSeat.status === 'SOLD') {
-      toast.error(`🚫 Double-Booking Blocked: Seat ${currentSeat.id} is already SOLD and cannot be booked!`, {
-        description: 'PostgreSQL Transaction and Redlock prevent duplicate ticket purchases.',
-        duration: 4000
-      });
+      toast.error(`Seat ${currentSeat.id} is already SOLD.`);
       return;
     }
 
-    // Temporary Hold / Concurrency Lock Protection (by another user/tab)
     if (currentSeat.status === 'HOLDING' && !isSelected && currentSeat.heldByUserId && currentSeat.heldByUserId !== currentUserId) {
-      toast.warning(`⏳ Double-Booking Blocked: Seat ${currentSeat.id} is currently held by another customer!`, {
-        description: 'Protected by 10-Minute Redis TTL temporary seat lock.',
-        duration: 4000
-      });
+      toast.warning(`Seat ${currentSeat.id} is currently held by another user.`);
       return;
     }
 
@@ -227,33 +216,40 @@ function SeatsContent() {
     toggleSeat({
       id: currentSeat.id,
       name: currentSeat.id,
-      price: price
+      price: price,
     });
   };
 
+  // Hold seats atomically in NestJS / Redis
   const handleHoldSeats = async () => {
     if (selectedSeats.length === 0) return;
-    
+
     if (!isAuthenticated) {
-      toast.info('Booking as guest. Continuing to snacks & combos!');
+      toast.info('Please log in to reserve your seats.');
+      router.push(`/login?redirect=/booking/seats?showtimeId=${showtimeId}`);
+      return;
     }
 
-    // Mark seats as locked in server sync
-    await fetch('/api/seats/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    try {
+      const seatIds = selectedSeats.map((s) => s.id);
+      const res = await api.post('/bookings/hold-seat', {
         showtimeId,
-        seatIds: selectedSeats.map(s => s.id),
-        action: 'LOCK',
-        senderId: user?.id || sessionId,
-      }),
-    });
+        seatIds,
+      });
 
-    const mockReservationId = `res_${Date.now()}`;
-    const mockExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-    setReservation(mockReservationId, mockExpiresAt);
-    router.push('/booking/fb');
+      if (res && res.data) {
+        const { reservationId, expiresAt } = res.data;
+        setReservation(reservationId, expiresAt);
+        toast.success(`Reserved ${seatIds.length} seat(s) for 10 minutes.`);
+        router.push('/booking/fb');
+        return;
+      }
+    } catch (err: any) {
+      const errMsg = err?.response?.data?.message || err?.message || 'Failed to hold seats';
+      toast.error(errMsg);
+      // Refresh seats from backend to reflect true state
+      loadShowtimeSeats();
+    }
   };
 
   if (loading) {
@@ -270,7 +266,6 @@ function SeatsContent() {
   return (
     <div className="min-h-screen bg-background pb-32 pt-6">
       <div className="container mx-auto px-4 py-4">
-        
         {/* Header with Title and 10-Min TTL Countdown */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
@@ -304,33 +299,39 @@ function SeatsContent() {
           <p className="text-xs text-center text-muted-foreground mb-6 md:hidden">
             ↔ Swipe horizontally to view full auditorium layout
           </p>
-          
+
           <div className="min-w-max mx-auto flex flex-col items-center gap-3 px-4">
             {matrix?.grid?.map((rowArr: any[], rowIndex: number) => (
               <div key={`row-${rowIndex}`} className="flex items-center gap-4">
                 <div className="w-6 text-center font-bold text-muted-foreground text-sm">
                   {String.fromCharCode(65 + rowIndex)}
                 </div>
-                
+
                 <div className="flex gap-2">
                   {rowArr.map((seat: any, colIndex: number) => {
-                    if (!seat || seat.type === 'EMPTY') {
+                    if (!seat || seat.type === 'EMPTY_SPACE' || seat.type === 'EMPTY') {
                       return <div key={`empty-${rowIndex}-${colIndex}`} className="w-8 h-8 md:w-10 md:h-10" />;
                     }
 
                     const currentSeat = seats[seat.id] || seat;
-                    const isSelected = !!selectedSeats.find(s => s.id === currentSeat.id);
-                    const currentUserId = user?.id || sessionId;
-                    const isHeldByOther = currentSeat.status === 'HOLDING' && !isSelected && currentSeat.heldByUserId && currentSeat.heldByUserId !== currentUserId;
-                                  let bgClass = "bg-zinc-800 text-gray-300 border-zinc-700 hover:border-primary hover:text-white cursor-pointer"; // AVAILABLE STANDARD
-                    if (currentSeat.type === 'VIP') bgClass = "bg-amber-950/40 border-amber-500/50 text-amber-300 hover:bg-amber-500/30 cursor-pointer";
-                    if (currentSeat.type === 'COUPLE') bgClass = "bg-pink-950/40 border-pink-500/50 text-pink-300 hover:bg-pink-500/30 cursor-pointer";
-                    
-                    if (currentSeat.status === 'SOLD') bgClass = "bg-zinc-950 text-zinc-600 border-zinc-900 cursor-not-allowed opacity-50 hover:border-destructive/60 hover:text-destructive";
-                    if (isHeldByOther) bgClass = "bg-amber-500 text-zinc-950 border-2 border-amber-300 font-black cursor-not-allowed shadow-[0_0_20px_rgba(245,158,11,0.9)] scale-105 z-10 transition-transform animate-pulse";
-                    if (currentSeat.status === 'BLOCKED') bgClass = "bg-black text-transparent cursor-not-allowed border-none opacity-20";
-                    
-                    if (isSelected) bgClass = "bg-primary text-white shadow-[0_0_15px_rgba(225,29,72,0.8)] border-primary scale-110 z-10 transition-transform font-bold cursor-pointer";
+                    const isSelected = !!selectedSeats.find((s) => s.id === currentSeat.id);
+                    const currentUserId = user?.id;
+                    const isHeldByOther =
+                      currentSeat.status === 'HOLDING' && !isSelected && currentSeat.heldByUserId && currentSeat.heldByUserId !== currentUserId;
+
+                    let bgClass = 'bg-zinc-800 text-gray-300 border-zinc-700 hover:border-primary hover:text-white cursor-pointer';
+                    if (currentSeat.type === 'VIP') bgClass = 'bg-amber-950/40 border-amber-500/50 text-amber-300 hover:bg-amber-500/30 cursor-pointer';
+                    if (currentSeat.type === 'COUPLE') bgClass = 'bg-pink-950/40 border-pink-500/50 text-pink-300 hover:bg-pink-500/30 cursor-pointer';
+
+                    if (currentSeat.status === 'SOLD') bgClass = 'bg-zinc-950 text-zinc-600 border-zinc-900 cursor-not-allowed opacity-50';
+                    if (isHeldByOther)
+                      bgClass =
+                        'bg-amber-500 text-zinc-950 border-2 border-amber-300 font-black cursor-not-allowed shadow-[0_0_20px_rgba(245,158,11,0.9)] scale-105 z-10 transition-transform animate-pulse';
+                    if (currentSeat.status === 'BLOCKED') bgClass = 'bg-black text-transparent cursor-not-allowed border-none opacity-20';
+
+                    if (isSelected)
+                      bgClass =
+                        'bg-primary text-white shadow-[0_0_15px_rgba(225,29,72,0.8)] border-primary scale-110 z-10 transition-transform font-bold cursor-pointer';
 
                     return (
                       <button
@@ -359,7 +360,7 @@ function SeatsContent() {
                     );
                   })}
                 </div>
-                
+
                 <div className="w-6 text-center font-bold text-muted-foreground text-sm">
                   {String.fromCharCode(65 + rowIndex)}
                 </div>
@@ -367,7 +368,7 @@ function SeatsContent() {
             ))}
           </div>
         </div>
-        
+
         {/* Legends */}
         <div className="flex flex-wrap justify-center gap-4 md:gap-8 mt-6 p-4 bg-zinc-950/80 backdrop-blur-md rounded-xl border border-white/10 max-w-3xl mx-auto shadow-lg">
           <div className="flex items-center gap-2 text-xs md:text-sm text-gray-300">
@@ -401,9 +402,7 @@ function SeatsContent() {
             <div>
               <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Selected Seats:</p>
               <p className="font-black text-base md:text-lg text-white max-w-[240px] md:max-w-none truncate">
-                {selectedSeats.length > 0 
-                  ? selectedSeats.map(s => s.name).join(', ') 
-                  : 'None selected'}
+                {selectedSeats.length > 0 ? selectedSeats.map((s) => s.name).join(', ') : 'None selected'}
               </p>
             </div>
             <div className="text-right sm:hidden">
@@ -411,15 +410,15 @@ function SeatsContent() {
               <p className="font-black text-xl text-primary">{totalPrice.toLocaleString('en-IN')} INR</p>
             </div>
           </div>
-          
+
           <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-6">
             <div className="text-right hidden sm:block">
               <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Subtotal:</p>
               <p className="font-black text-2xl text-primary">{totalPrice.toLocaleString('en-IN')} INR</p>
             </div>
-            
-            <Button 
-              size="lg" 
+
+            <Button
+              size="lg"
               onClick={handleHoldSeats}
               disabled={selectedSeats.length === 0}
               className="w-full sm:w-auto text-base md:text-lg font-bold px-8 shadow-lg shadow-primary/40 bg-primary hover:bg-primary/90 text-white rounded-full"

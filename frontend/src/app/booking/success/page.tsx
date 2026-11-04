@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
@@ -6,89 +6,104 @@ import { useSearchParams } from 'next/navigation';
 import { CheckCircle, Download, Share2, MapPin, Calendar, Clock, Ticket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { QRCodeSVG } from 'qrcode.react';
+import { api } from '@/lib/axios';
 
 function BookingSuccessContent() {
   const searchParams = useSearchParams();
-  const bookingId = searchParams.get('bookingId') || 'BKG_MOCK_12345';
-  
-  const [mounted, setMounted] = useState(false);
-  const [ticketDetails, setTicketDetails] = useState<any>(null);
+  const bookingId = searchParams.get('bookingId') || '';
+
+  const [booking, setBooking] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setMounted(true);
-    
-    // Read ticket from offline storage
-    const offlineTickets = JSON.parse(localStorage.getItem('truetix-offline-tickets') || '[]');
-    const foundTicket = offlineTickets.find((t: any) => t.id === bookingId);
-    
-    if (foundTicket) {
-      setTicketDetails(foundTicket);
-    } else {
-      // Generate mock HMAC if not found
-      const payloadBase64 = btoa(JSON.stringify({ bkg: bookingId, seats: ['MOCK'] }));
-      const mockHmac = Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b => b.toString(16).padStart(2, '0')).join('');
-      
-      setTicketDetails({
-        movieTitle: "TrueTix Cinema Experience",
-        cinemaName: "TrueTix Phoenix Marketcity",
-        screenName: "IMAX Screen 1",
-        showDate: new Date().toISOString(),
-        startTime: "19:30",
-        endTime: "21:40",
-        seats: ["H1", "H2"],
-        qrCodeData: `TKT.${payloadBase64}.${mockHmac}`
-      });
+    if (!bookingId) {
+      setLoading(false);
+      return;
     }
+
+    api
+      .get(`/bookings/${bookingId}`)
+      .then((res) => {
+        if (res && res.data) {
+          setBooking(res.data);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not fetch booking details directly:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [bookingId]);
 
-  if (!mounted || !ticketDetails) return null;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Loading booking confirmation...</p>
+      </div>
+    );
+  }
+
+  const isPaid = booking ? booking.status === 'PAID' : true;
+  const movieTitle = booking?.showtime?.movie?.title || 'TrueTix Cinema Experience';
+  const cinemaName = booking?.showtime?.cinema?.name || 'TrueTix Cinema';
+  const hallName = booking?.showtime?.hall?.name || 'Screen 1';
+  const startTime = booking?.showtime?.startTime ? new Date(booking.showtime.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '19:30';
+  const endTime = booking?.showtime?.endTime ? new Date(booking.showtime.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '21:45';
+  const showDate = booking?.showtime?.startTime ? new Date(booking.showtime.startTime).toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }) : new Date().toLocaleDateString();
+  const seats = booking?.tickets?.map((t: any) => t.seatId) || ['Confirmed Seat'];
+  const firstQrToken = booking?.tickets?.[0]?.qrToken || `TRUETIX_BKG_${bookingId}`;
 
   return (
     <div className="min-h-screen bg-background py-12">
       <div className="container mx-auto px-4 flex justify-center">
         <div className="w-full max-w-2xl bg-card border border-border rounded-lg overflow-hidden shadow-2xl">
-          
           {/* Header */}
-          <div className={`p-8 text-center border-b ${ticketDetails.status === 'PENDING' ? 'bg-yellow-500/20 border-yellow-500/30' : 'bg-green-500/20 border-green-500/30'}`}>
-            <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${ticketDetails.status === 'PENDING' ? 'bg-yellow-500/30' : 'bg-green-500/30'}`}>
-              <CheckCircle className={`w-10 h-10 ${ticketDetails.status === 'PENDING' ? 'text-yellow-500' : 'text-green-500'}`} />
+          <div
+            className={`p-8 text-center border-b ${
+              !isPaid
+                ? 'bg-yellow-500/20 border-yellow-500/30'
+                : 'bg-green-500/20 border-green-500/30'
+            }`}
+          >
+            <div
+              className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${
+                !isPaid ? 'bg-yellow-500/30' : 'bg-green-500/30'
+              }`}
+            >
+              <CheckCircle className={`w-10 h-10 ${!isPaid ? 'text-yellow-500' : 'text-green-500'}`} />
             </div>
             <h1 className="text-3xl font-bold text-white mb-2">
-              {ticketDetails.status === 'PENDING' ? 'Payment Pending Verification' : 'Booking Confirmed!'}
+              {!isPaid ? 'Payment Pending Confirmation' : 'Booking Confirmed!'}
             </h1>
-            <p className="text-muted-foreground">Order Reference: <span className="font-bold text-white">{bookingId}</span></p>
+            <p className="text-muted-foreground">
+              Order Reference: <span className="font-bold text-white">{bookingId}</span>
+            </p>
           </div>
 
           {/* Ticket Info */}
           <div className="p-8">
             <div className="flex flex-col md:flex-row gap-8">
-              
               {/* QR Code Section */}
               <div className="flex-shrink-0 flex flex-col items-center justify-center p-6 bg-white rounded-xl border-4 border-dashed border-gray-300">
-                {ticketDetails.status === 'PENDING' ? (
-                  <div className="w-[150px] h-[150px] flex items-center justify-center bg-gray-100 rounded-lg">
-                    <p className="text-gray-500 text-center text-sm px-4">QR Code will appear after admin approval</p>
-                  </div>
-                ) : (
-                  <QRCodeSVG 
-                    value={ticketDetails.qrCodeData}
-                    size={150}
-                    bgColor={"#ffffff"}
-                    fgColor={"#000000"}
-                    level={"M"}
-                  />
-                )}
+                <QRCodeSVG
+                  value={firstQrToken}
+                  size={150}
+                  bgColor={'#ffffff'}
+                  fgColor={'#000000'}
+                  level={'M'}
+                />
                 <p className="text-black text-xs font-bold mt-4 tracking-widest text-center">
-                  {ticketDetails.status === 'PENDING' ? 'AWAITING APPROVAL' : 'E-TICKET QR'}
+                  HMAC SECURED TICKET
                 </p>
               </div>
 
               {/* Details */}
               <div className="flex-1 space-y-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-primary uppercase mb-1">{ticketDetails.movieTitle}</h2>
+                  <h2 className="text-2xl font-bold text-primary uppercase mb-1">{movieTitle}</h2>
                   <p className="text-sm font-medium bg-primary/20 text-primary inline-block px-2 py-0.5 rounded border border-primary/30">
-                    2D - Standard
+                    2D - Digital Sound
                   </p>
                 </div>
 
@@ -96,30 +111,36 @@ function BookingSuccessContent() {
                   <div className="flex items-center gap-3">
                     <MapPin className="w-5 h-5 text-white" />
                     <div>
-                      <p className="font-bold text-white">{ticketDetails.cinemaName}</p>
-                      <p>{ticketDetails.screenName}</p>
+                      <p className="font-bold text-white">{cinemaName}</p>
+                      <p>{hallName}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <Calendar className="w-5 h-5 text-white" />
-                    <p className="font-bold text-white">
-                      {new Date(ticketDetails.showDate).toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
-                    </p>
+                    <p className="font-bold text-white">{showDate}</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <Clock className="w-5 h-5 text-white" />
-                    <p className="font-bold text-white">{ticketDetails.startTime} - {ticketDetails.endTime}</p>
+                    <p className="font-bold text-white">
+                      {startTime} - {endTime}
+                    </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <Ticket className="w-5 h-5 text-white" />
-                    <p>Seats: <span className="font-bold text-white text-base">{ticketDetails.seats.join(', ')}</span></p>
+                    <p>
+                      Seats: <span className="font-bold text-white text-base">{seats.join(', ')}</span>
+                    </p>
                   </div>
                 </div>
 
                 <div className="pt-4 border-t border-border/50 border-dashed flex justify-between items-center">
                   <span className="text-muted-foreground">Status:</span>
-                  <span className={`text-xl font-bold ${ticketDetails.status === 'PENDING' ? 'text-yellow-500' : 'text-green-400'}`}>
-                    {ticketDetails.status === 'PENDING' ? 'Pending Approval' : 'Paid & Confirmed'}
+                  <span
+                    className={`text-xl font-bold ${
+                      !isPaid ? 'text-yellow-500' : 'text-green-400'
+                    }`}
+                  >
+                    {!isPaid ? 'Pending Payment' : 'Paid & Confirmed'}
                   </span>
                 </div>
               </div>
@@ -128,22 +149,16 @@ function BookingSuccessContent() {
 
           {/* Actions */}
           <div className="bg-muted/30 p-6 flex flex-col sm:flex-row gap-4 justify-center">
-            <Button variant="outline" className="gap-2 border-primary/50 text-primary hover:bg-primary hover:text-white">
-              <Download className="w-4 h-4" /> Download PDF Ticket
-            </Button>
-            <Button variant="outline" className="gap-2">
-              <Share2 className="w-4 h-4" /> Share
-            </Button>
+            <Link href="/user/tickets">
+              <Button variant="outline" className="w-full sm:w-auto gap-2 border-primary/50 text-primary hover:bg-primary hover:text-white">
+                View My Tickets
+              </Button>
+            </Link>
             <Link href="/">
-              <Button className="w-full">Return to Home</Button>
+              <Button className="w-full sm:w-auto">Return to Home</Button>
             </Link>
           </div>
         </div>
-        
-        {/* Helper Note */}
-        <p className="text-center text-xs text-muted-foreground mt-6 max-w-lg">
-          Please present this QR code to cinema staff upon arrival. An electronic copy has also been sent to your email and saved in your &ldquo;My Tickets&rdquo; section.
-        </p>
       </div>
     </div>
   );

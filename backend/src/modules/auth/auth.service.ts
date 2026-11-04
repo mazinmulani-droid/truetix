@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -16,7 +16,7 @@ export class AuthService {
     private configService: ConfigService,
   ) {}
 
-  // Đăng ký người dùng mới
+  // Register new user
   async register(registerDto: RegisterDto) {
     const existingUser = await this.prisma.user.findUnique({
       where: { email: registerDto.email },
@@ -52,7 +52,7 @@ export class AuthService {
     };
   }
 
-  // Đăng nhập
+  // Login
   async login(loginDto: LoginDto) {
     const user = await this.prisma.user.findUnique({
       where: { email: loginDto.email },
@@ -85,7 +85,7 @@ export class AuthService {
     };
   }
 
-  // Lấy Access Token mới từ Refresh Token
+  // Refresh token
   async refreshToken(refreshTokenDto: RefreshTokenDto) {
     const tokenRecord = await this.prisma.refreshToken.findUnique({
       where: { token: refreshTokenDto.refreshToken },
@@ -109,54 +109,38 @@ export class AuthService {
     };
   }
 
-  // Google / OAuth 2.0 Login
+  /**
+   * OAuth login endpoint
+   * Explicitly disabled to maintain security integrity because external provider
+   * ID token signature validation is not configured in this environment.
+   */
   async oauthLogin(dto: OAuthLoginDto) {
-    let user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
-    });
-
-    if (!user) {
-      // Auto-create user on first OAuth login
-      const randomPassword = await bcrypt.hash(Math.random().toString(36) + Date.now().toString(), 10);
-      user = await this.prisma.user.create({
-        data: {
-          email: dto.email,
-          fullName: dto.fullName || dto.email.split('@')[0],
-          password: randomPassword,
-        },
-      });
-    }
-
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
-    await this.saveRefreshToken(user.id, tokens.refreshToken);
-
-    const { password, ...userWithoutPassword } = user;
-
-    return {
-      user: userWithoutPassword,
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-    };
+    throw new BadRequestException(
+      'OAuth 2.0 provider token verification is not configured in this environment. Please authenticate using email and password.',
+    );
   }
 
-  // Sinh cặp Access Token và Refresh Token
+  // Generate Access Token and Refresh Token
   private async generateTokens(userId: string, email: string, role: string) {
     const payload = { sub: userId, email, role };
 
+    const jwtSecret = this.configService.get<string>('JWT_SECRET', 'truetix_jwt_super_secret_key_2026');
+    const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET', 'truetix_refresh_super_secret_key_2026');
+
     const accessToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_SECRET') || 'clgv_jwt_super_secret_key_2026',
+      secret: jwtSecret,
       expiresIn: '1d',
     });
 
     const refreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_REFRESH_SECRET') || 'clgv_refresh_super_secret_key_2026',
+      secret: refreshSecret,
       expiresIn: '7d',
     });
 
     return { accessToken, refreshToken };
   }
 
-  // Lưu Refresh Token vào Database
+  // Save refresh token to database
   private async saveRefreshToken(userId: string, token: string) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);

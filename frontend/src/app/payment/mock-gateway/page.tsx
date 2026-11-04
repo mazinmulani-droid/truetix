@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -13,17 +13,18 @@ import { API_URL } from '@/lib/constants';
 function MockGatewayContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
-  const orderId = searchParams.get('orderId');
+
+  const bookingId = searchParams.get('bookingId') || searchParams.get('orderId');
   const amount = searchParams.get('amount');
-  
+  const signature = searchParams.get('signature') || '';
+
   const [isProcessing, setIsProcessing] = useState(false);
 
-  if (!orderId || !amount) {
+  if (!bookingId || !amount) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
         <h2 className="text-2xl font-bold text-destructive">Invalid Request</h2>
-        <p className="text-muted-foreground">Missing payment information (orderId, amount).</p>
+        <p className="text-muted-foreground">Missing payment information (bookingId, amount).</p>
         <Button onClick={() => router.push('/')}>Return to Home</Button>
       </div>
     );
@@ -31,28 +32,33 @@ function MockGatewayContent() {
 
   const handleSimulatePayment = async (success: boolean) => {
     setIsProcessing(true);
-    
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const responseCode = success ? '00' : '24'; // 00 is success, 24 is cancelled in CREDIT_CARD
-    
+
+    // Simulate short network delay
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
     try {
-      // Call backend callback
-      await axios.get(
-        `${API_URL}/payments/inpay/callback?inp_ResponseCode=${responseCode}&inp_TxnRef=${orderId}&inp_Amount=${amount}`
-      );
-      
+      // Call unified mock callback endpoint
+      const status = success ? 'SUCCESS' : 'CANCELLED';
+      await axios.get(`${API_URL}/payments/mock/callback`, {
+        params: {
+          bookingId,
+          amount,
+          status,
+          signature,
+        },
+      });
+
       if (success) {
-        toast.success('Payment successful!');
-        router.push(`/booking/success?bookingId=${orderId}`);
+        toast.success('Payment successful & booking confirmed!');
+        router.push(`/booking/success?bookingId=${bookingId}`);
       } else {
         toast.error('Payment was cancelled.');
-        router.push('/booking/showtimes'); // Go back to booking flow
+        router.push('/booking/seats');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast.error('An error occurred during payment processing.');
+      const msg = error?.response?.data?.message || 'An error occurred during payment processing.';
+      toast.error(msg);
       setIsProcessing(false);
     }
   };
@@ -60,53 +66,59 @@ function MockGatewayContent() {
   return (
     <div className="max-w-md mx-auto space-y-6">
       <div className="text-center space-y-2">
-        <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">CREDIT_CARD SANDBOX</h1>
-        <p className="text-sm text-muted-foreground">Payment Simulator (Mock Gateway)</p>
+        <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">TRUETIX MOCK PAYMENT GATEWAY</h1>
+        <p className="text-sm text-muted-foreground">Simulated Payment Gateway (Sandboxed SDE Environment)</p>
       </div>
-      
+
       <Card className="border-border">
         <CardHeader className="bg-muted/50 border-b">
           <CardTitle className="text-lg flex items-center justify-between">
-            <span>Order Details</span>
-            <span className="text-primary font-bold">{new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(amount))}</span>
+            <span>Order Summary</span>
+            <span className="text-primary font-bold">
+              {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(amount))}
+            </span>
           </CardTitle>
-          <CardDescription>Order ID: {orderId}</CardDescription>
+          <CardDescription>Booking ID: {bookingId}</CardDescription>
         </CardHeader>
-        
+
         <CardContent className="p-6 space-y-8">
           <div className="flex flex-col items-center justify-center space-y-4">
             <div className="bg-white p-4 rounded-xl border">
-              <QRCodeSVG 
-                value={`MOCK_PAYMENT_${orderId}_${amount}`}
+              <QRCodeSVG
+                value={`TRUETIX_MOCK_PAYMENT_${bookingId}_${amount}`}
                 size={200}
-                bgColor={"#ffffff"}
-                fgColor={"#000000"}
-                level={"Q"}
+                bgColor={'#ffffff'}
+                fgColor={'#000000'}
+                level={'Q'}
               />
             </div>
             <p className="text-sm text-muted-foreground text-center">
-              Scan the QR code using your mobile banking or e-wallet app.
+              Scan simulated QR code or click below to complete the test payment transaction.
             </p>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full text-destructive hover:bg-destructive hover:text-white"
               onClick={() => handleSimulatePayment(false)}
               disabled={isProcessing}
             >
               Cancel Payment
             </Button>
-            <Button 
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+            <Button
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold"
               onClick={() => handleSimulatePayment(true)}
               disabled={isProcessing}
             >
               {isProcessing ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</>
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...
+                </>
               ) : (
-                <><ShieldCheck className="mr-2 h-4 w-4" /> Simulate Success</>
+                <>
+                  <ShieldCheck className="mr-2 h-4 w-4" /> Simulate Success
+                </>
               )}
             </Button>
           </div>

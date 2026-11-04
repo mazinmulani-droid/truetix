@@ -1,20 +1,28 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TicketService } from './ticket.service';
-import * as crypto from 'crypto';
+import { TicketTokenUtil } from '../../common/utils/ticket-token.util';
+import { ConflictException, UnprocessableEntityException } from '@nestjs/common';
 
-describe('TicketService', () => {
+describe('TicketService Scenarios', () => {
   let service: TicketService;
   let prismaMock: any;
   let configMock: any;
+  const secret = 'truetix_hmac_qr_secret_key_2026';
 
   beforeEach(() => {
     prismaMock = {
-      ticket: { findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+      ticket: {
+        findMany: vi.fn(),
+        findUnique: vi.fn(),
+        update: vi.fn(),
+        updateMany: vi.fn(),
+      },
+      $transaction: vi.fn((cb) => cb(prismaMock)),
     };
     configMock = {
       get: vi.fn((key: string, defaultVal: string) => {
         if (key === 'TURNSTILE_SECRET_KEY') return 'turnstile-secret-key-2026';
-        if (key === 'TICKET_HMAC_SECRET') return 'clgv-ticket-secret-key-2026';
+        if (key === 'TICKET_HMAC_SECRET') return secret;
         return defaultVal;
       }),
     };
@@ -22,52 +30,125 @@ describe('TicketService', () => {
     service = new TicketService(prismaMock, configMock);
   });
 
-  it('nên báo lỗi UnauthorizedException khi X-Scanner-Key không khớp', async () => {
+  // Scenario 10: Invalid QR signatures are rejected
+  it('Scenario 10: Invalid QR signatures are rejected with UnprocessableEntityException', async () => {
+    // Generate valid payload but sign with forged wrong secret
+    const token = TicketTokenUtil.generateToken(
+      {
+        ticketId: 'tkt_001',
+        bookingId: 'bkg_123',
+        showtimeId: 'st_456',
+        seatId: 'H12',
+        userId: 'usr_789',
+      },
+      'attacker-forged-secret-key',
+    );
+
     await expect(
-      service.verifyQrTicket('wrong-key', 'dummy-token'),
-    ).rejects.toThrowError('Invalid X-Scanner-Key header');
+      service.verifyQrTicket('turnstile-secret-key-2026', token),
+    ).rejects.toThrow(UnprocessableEntityException);
   });
 
-  it('nên báo lỗi UnprocessableEntityException khi định dạng qrToken không phải TKT.payload.sig', async () => {
-    await expect(
-      service.verifyQrTicket('turnstile-secret-key-2026', 'INVALID_TOKEN'),
-    ).rejects.toThrow();
-  });
+  // Scenario 11: Valid QR tickets for unpaid bookings are rejected
+  it('Scenario 11: Valid QR tickets for unpaid bookings are rejected', async () => {
+    const token = TicketTokenUtil.generateToken(
+      {
+        ticketId: 'tkt_001',
+        bookingId: 'bkg_123',
+        showtimeId: 'st_456',
+        seatId: 'H12',
+        userId: 'usr_789',
+      },
+      secret,
+    );
 
-  it('nên xác thực mã QR HMAC-SHA256 thành công', async () => {
-    const secret = 'clgv-ticket-secret-key-2026';
-    const payload = {
-      ticketId: 'tkt_001',
-      showtimeId: 'st_456',
+    // Booking status is PENDING_PAYMENT (unpaid)
+    prismaMock.ticket.findUnique.mockResolvedValue({
+      id: 'tkt_001',
       seatId: 'H12',
-      exp: Math.floor(Date.now() / 1000) + 3600,
-    };
-    const payloadBase64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
-    const sig = crypto.createHmac('sha256', secret).update(payloadBase64).digest('base64url');
-    const token = `TKT.${payloadBase64}.${sig}`;
+      status: 'UNUSED',
+      booking: {
+        status: 'PENDING_PAYMENT',
+        showtime: { movie: {}, cinema: {}, hall: {} },
+        combos: [],
+      },
+    });
+
+    await expect(
+      service.verifyQrTicket('turnstile-secret-key-2026', token),
+    ).rejects.toThrow(UnprocessableEntityException);
+  });
+
+  // Scenario 12: A ticket cannot be checked in twice
+  it('Scenario 12: A ticket cannot be checked in twice', async () => {
+    const token = TicketTokenUtil.generateToken(
+      {
+        ticketId: 'tkt_001',
+        bookingId: 'bkg_123',
+        showtimeId: 'st_456',
+        seatId: 'H12',
+        userId: 'usr_789',
+      },
+      secret,
+    );
+
+    prismaMock.ticket.findUnique.mockResolvedValue({
+      id: 'tkt_001',
+      seatId: 'H12',
+      status: 'CHECKED_IN',
+      booking: {
+        status: 'PAID',
+        showtime: { movie: {}, cinema: {}, hall: {} },
+        combos: [],
+      },
+    });
+
+    // updateMany matches 0 rows because status is already CHECKED_IN
+    prismaMock.ticket.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      service.verifyQrTicket('turnstile-secret-key-2026', token),
+    ).rejects.toThrow(ConflictException);
+  });
+
+  // Scenario 13: Simultaneous check-in requests cannot both succeed
+  it('Scenario 13: Simultaneous check-in requests cannot both succeed (Atomic DB conditional update)', async () => {
+    const token = TicketTokenUtil.generateToken(
+      {
+        ticketId: 'tkt_001',
+        bookingId: 'bkg_123',
+        showtimeId: 'st_456',
+        seatId: 'H12',
+        userId: 'usr_789',
+      },
+      secret,
+    );
 
     prismaMock.ticket.findUnique.mockResolvedValue({
       id: 'tkt_001',
       seatId: 'H12',
       status: 'UNUSED',
       booking: {
-        showtime: {
-          movie: { title: 'Avatar 3' },
-          cinema: { name: 'CGV Vincom' },
-          hall: { name: 'Hall 1' },
-        },
+        status: 'PAID',
+        showtime: { movie: { title: 'Test Film' }, cinema: { name: 'Cinema 1' }, hall: { name: 'H1' } },
         combos: [],
       },
     });
-    prismaMock.ticket.update.mockResolvedValue({
-      id: 'tkt_001',
-      status: 'CHECKED_IN',
-      updatedAt: new Date(),
-    });
 
-    const result = await service.verifyQrTicket('turnstile-secret-key-2026', token);
-    expect(result.verified).toBe(true);
-    expect(result.ticketId).toBe('tkt_001');
-    expect(result.status).toBe('CHECKED_IN');
+    // First attempt succeeds (count = 1), second attempt fails (count = 0)
+    prismaMock.ticket.updateMany
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 });
+
+    const req1 = service.verifyQrTicket('turnstile-secret-key-2026', token);
+    const req2 = service.verifyQrTicket('turnstile-secret-key-2026', token);
+
+    const [res1, res2] = await Promise.allSettled([req1, req2]);
+
+    expect(res1.status).toBe('fulfilled');
+    expect(res2.status).toBe('rejected');
+    if (res2.status === 'rejected') {
+      expect(res2.reason).toBeInstanceOf(ConflictException);
+    }
   });
 });
