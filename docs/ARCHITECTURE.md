@@ -74,7 +74,7 @@ flowchart TD
 
 ## 3. Technology Rationale & Trade-offs
 
-| Component | Technology | Why Chosen? | Interview Defense |
+| Component | Technology | Why Chosen? | Key Architectural Benefit |
 |---|---|---|---|
 | **Frontend** | Next.js 16 (App Router) | Server-Side Rendering for SEO-sensitive movie pages, fast hydration, and modern React 19 component model. | Clear separation of presentation from backend logic. |
 | **Backend** | NestJS | Modular, enterprise-grade architecture with TypeScript, built-in dependency injection, and declarative guards/pipes. | Highly testable, structured, and easy to maintain. |

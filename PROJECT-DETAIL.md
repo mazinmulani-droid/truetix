@@ -4,7 +4,7 @@
 
 ## 1. Executive Summary
 
-**TrueTix** is a high-concurrency, interview-focused real-time movie ticket reservation and cinema management system. The platform is engineered to demonstrate senior-level software engineering concepts with a focus on reliability, data consistency, and architectural defensibility:
+**TrueTix** is a high-concurrency real-time movie ticket reservation and cinema management system. The platform is engineered with a focus on reliability, data consistency, and distributed concurrency control:
 
 1. **Double-Booking Prevention**: Solves flash-sale race conditions using a **Two-Tier Locking Strategy**:
    - **Tier 1 (Ephemeral Locks)**: High-throughput, distributed temporary locks in **Redis** (`SET lock:seat:{showtimeId}:{seatId} ownerToken NX EX 600`) with atomic Lua compare-and-delete release.
@@ -157,7 +157,7 @@ To ensure tamper-proof, offline-verifiable tickets:
 | **Database** | PostgreSQL 15 | Managed with Prisma 5 ORM |
 | **Cache & Locks** | Redis 7 | Managed with `ioredis` |
 | **Real-time** | Socket.IO | Verified JWT handshake authentication |
-| **Testing** | Vitest | 19 automated tests covering all 15 interview scenarios + concurrency test |
+| **Testing** | Vitest | 19 automated tests covering locking, rollback, idempotency, and concurrency |
 
 ---
 

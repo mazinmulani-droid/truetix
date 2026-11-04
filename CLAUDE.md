@@ -6,7 +6,7 @@ Welcome to **TrueTix — Real-Time Movie Ticket Platform**. This document serves
 
 ## 1. Project Overview & Core Mission
 
-**TrueTix** is an interview-focused, high-concurrency movie ticketing platform built to demonstrate senior SDE-level engineering concepts. The primary technical story is **preventing race conditions and double-booking in a real-time reservation system**.
+**TrueTix** is a high-concurrency movie ticketing platform built to handle flash-sale ticket drops. The primary technical story is **preventing race conditions and double-booking in a real-time reservation system**.
 
 ### Key Architectural Pillars:
 1. **Two-Tier Locking Model**:
@@ -28,11 +28,11 @@ truetix/
 ├── CLAUDE.md                                                   # Global project conventions & guidelines
 ├── PROJECT-DETAIL.md                                           # Detailed functional & technical spec
 ├── API-CONTRACT.md                                             # REST & WebSocket API specification
-├── docs/                                                       # Technical interview documentation suite
+├── docs/                                                       # Architecture & system design documentation
 │   ├── ARCHITECTURE.md                                         # System architecture & Mermaid diagrams
 │   ├── BOOKING_FLOW.md                                         # End-to-end booking flow lifecycle
 │   ├── DATABASE.md                                             # ERD & schema consistency constraints
-│   ├── INTERVIEW_GUIDE.md                                      # SDE interview Q&A defense guide
+│   ├── CONCURRENCY_FAQ.md                                      # Concurrency deep dive & technical FAQ
 │   ├── DECISIONS.md                                            # Technical decisions & trade-offs
 │   └── KNOWN_LIMITATIONS.md                                    # System boundaries & production roadmap
 ├── frontend/                                                   # Next.js 16 (App Router), React 19, Tailwind CSS, Zustand, Socket.IO Client
@@ -55,7 +55,7 @@ truetix/
 
 ## 3. Technology Stack Boundaries
 
-To keep the project clean, maintainable, and defensible in technical interviews, strictly observe these constraints:
+To keep the project clean, maintainable, and reliable, strictly observe these constraints:
 - **Preserve**: Next.js 16 (App Router), React 19, Zustand, NestJS 10, TypeScript, PostgreSQL 15, Prisma 5, Redis 7 (ioredis), Socket.IO, JWT + bcrypt, Swagger.
 - **Do NOT introduce**: Kafka, Kubernetes, microservices, MongoDB, GraphQL, or migrate Next.js to Vite.
 - **Maintain Single Authority**: Never re-introduce in-memory lock state on the frontend. NestJS + Redis is the single authority.

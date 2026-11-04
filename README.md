@@ -1,6 +1,6 @@
-# TrueTix — Real-Time Movie Ticket Platform
+# TrueTix
 
-> **A high-concurrency, interview-focused movie ticketing platform engineered to prevent double-booking using a two-tier locking architecture (Redis Distributed Locks + PostgreSQL ACID Transactions).**
+> A real-time movie ticketing and reservation platform engineered with Next.js, NestJS, Redis, and PostgreSQL. Built with a two-tier distributed locking architecture to prevent double-booking and race conditions during high-demand ticket sales.
 
 [![Node Version](https://img.shields.io/badge/node-20%2B-brightgreen.svg)](https://nodejs.org)
 [![NestJS](https://img.shields.io/badge/backend-NestJS%2010-red.svg)](https://nestjs.com)
@@ -9,16 +9,17 @@
 [![PostgreSQL](https://img.shields.io/badge/database-PostgreSQL%2015-blue.svg)](https://postgresql.org)
 [![Redis](https://img.shields.io/badge/cache-Redis%207-critical.svg)](https://redis.io)
 [![Tests](https://img.shields.io/badge/tests-19%20passed-success.svg)](https://vitest.dev)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
-## 🎯 Core Technical Highlight
+## Overview
 
-**Preventing race conditions and double booking in a real-time ticket reservation system.**
+When thousands of users select seats for high-demand movie releases simultaneously, standard database queries fail due to race conditions between `SELECT` and `INSERT/UPDATE`. 
 
-When thousands of users select seats for a blockbuster film simultaneously, naive database queries fail due to race conditions between `SELECT` and `INSERT/UPDATE`. TrueTix addresses this with a **Two-Tier Locking Strategy**:
-1. **Tier 1 (Ephemeral Locks)**: Sub-millisecond distributed locks in **Redis** (`SET lock:seat:... ownerToken NX EX 600`) hold seats for 10 minutes with zero database disk I/O.
-2. **Tier 2 (Permanent Source of Truth)**: **PostgreSQL** transactions and composite unique constraints (`@@unique([showtimeId, seatId])`) ensure that seats are permanently marked `SOLD` only upon validated, idempotent payment completion.
+TrueTix addresses this with a **Two-Tier Locking Strategy**:
+1. **Tier 1 (Ephemeral Holds)**: Sub-millisecond distributed locks in **Redis** (`SET lock:seat:... ownerToken NX EX 600`) hold seats for 10 minutes with zero database disk I/O.
+2. **Tier 2 (Permanent Source of Truth)**: **PostgreSQL** ACID transactions and composite unique constraints (`@@unique([showtimeId, seatId])`) guarantee that seats are permanently marked `SOLD` only upon validated, idempotent payment completion.
 
 ```mermaid
 flowchart TD
@@ -47,87 +48,58 @@ flowchart TD
 
 ---
 
-## 🏗️ System Architecture & Engineering Principles
+## Features
 
-- **Single Seat-Reservation Authority**: NestJS + Redis acts as the sole authority. The frontend contains zero in-memory locking logic and synchronizes live state through Socket.IO.
-- **Atomic Lua Lock Release**: Never deletes locks with raw `DEL`. Releasing locks uses an atomic Lua script that compares the stored lock owner with the requester's token before deleting.
-- **Multi-Seat Atomic Rollback**: If a customer requests seats `[A1, A2, A3]` and `A3` fails to lock, `A1` and `A2` are immediately rolled back via Lua. No partial seat reservations remain.
-- **Payment Idempotency**: Payment callbacks are validated with HMAC signatures and execute atomic conditional updates (`updateMany({ where: { id, status: 'PENDING_PAYMENT' } })`). Repeated or concurrent webhooks update 0 rows on subsequent attempts, preventing duplicate financial transactions or tickets.
-- **Timing-Safe HMAC-SHA256 Digital Tickets**: QR tickets use the standardized format `TKT.<payload>.<signature>` and are verified with `crypto.timingSafeEqual` to prevent side-channel timing attacks.
-- **Atomic Turnstile Check-In**: Cinema gates verify booking payment status (`PAID`) and check in tickets using atomic conditional updates (`where: { id, status: 'UNUSED' }, data: { status: 'CHECKED_IN' }`), guaranteeing that two scanners scanning the same ticket simultaneously cannot both admit the customer.
-- **Authenticated WebSockets**: Socket.IO connections require verified JWT tokens; user identities are derived directly from verified JWT claims rather than client-supplied payloads.
+- **Live Seat Map Synchronization**: Real-time interactive seat grid updated across all connected clients via Socket.IO.
+- **Single Seat-Reservation Authority**: NestJS backend manages all lock state. Client UI holds zero in-memory locking state and reflects authoritative backend updates.
+- **Atomic Lua Lock Release**: Locks are released using a compare-and-delete Lua script that compares the stored lock owner before deleting, preventing expired clients from releasing newly acquired locks.
+- **Multi-Seat Atomic Rollback**: All-or-nothing seat selection. If any seat in a requested batch fails to lock, all previously acquired locks in that batch are instantly rolled back.
+- **Idempotent Payment Sandbox**: Mock payment gateway with HMAC signature verification and atomic conditional database updates (`updateMany({ where: { id, status: 'PENDING_PAYMENT' } })`) to prevent duplicate transactions on network retries.
+- **Tamper-Proof Digital Tickets**: QR tickets use standardized `TKT.<payload>.<sig>` tokens verified with `crypto.timingSafeEqual` to eliminate timing attacks.
+- **Atomic Turnstile Scanner**: High-speed scanner gate endpoint for theater staff that validates tickets and checks them in atomically (`UNUSED` -> `CHECKED_IN`).
+- **Authenticated WebSockets**: Handshake authentication requiring valid JWT tokens, with user identity extracted directly from verified token claims.
 
 ---
 
-## 📚 Technical Interview Documentation Suite
+## Architecture & Documentation
 
-Comprehensive engineering guides have been created in the [`docs/`](./docs) directory:
+Comprehensive system design documents are available in the [`docs/`](./docs) directory:
 
 | Document | Description |
 |---|---|
-| 📐 [**Architecture Guide**](./docs/ARCHITECTURE.md) | Full architectural breakdown, layer responsibilities, and system Mermaid diagrams. |
-| 🔄 [**Booking Flow Lifecycle**](./docs/BOOKING_FLOW.md) | End-to-end API sequence diagram, lock lifecycles, and database transaction transitions. |
-| 🗄️ [**Database Schema & Constraints**](./docs/DATABASE.md) | Complete Entity-Relationship Diagram (ERD), table structures, and consistency rules. |
-| 💡 [**SDE Interview Defense Guide**](./docs/INTERVIEW_GUIDE.md) | Beginner-friendly answers to 11 core interview questions (race conditions, `SET NX EX`, Lua, ACID, idempotency). |
-| ⚖️ [**Engineering Decisions & Trade-offs**](./docs/DECISIONS.md) | Justifications for design decisions and trade-offs. |
-| 🔍 [**Known Limitations & Production Roadmap**](./docs/KNOWN_LIMITATIONS.md) | Honest assessment of current architectural boundaries and recommended production enhancements. |
+| 📐 [**Architecture Guide**](./docs/ARCHITECTURE.md) | System components, module boundaries, and layer responsibilities. |
+| 🔄 [**Booking Flow Lifecycle**](./docs/BOOKING_FLOW.md) | End-to-end API sequence diagram, lock lifecycles, and transaction states. |
+| 🗄️ [**Database Schema & Constraints**](./docs/DATABASE.md) | Entity-Relationship Diagram (ERD), table definitions, and data integrity rules. |
+| 🔍 [**Concurrency Deep Dive & FAQ**](./docs/CONCURRENCY_FAQ.md) | Detailed breakdown of distributed locking, Lua scripts, ACID transactions, and idempotency. |
+| ⚖️ [**Engineering Decisions & Trade-offs**](./docs/DECISIONS.md) | Technical rationale and trade-offs behind stack and architecture choices. |
+| 📋 [**Known Limitations & Roadmap**](./docs/KNOWN_LIMITATIONS.md) | Current architectural boundaries and future production enhancements. |
 
 ---
 
-## 🧪 Automated Test Suite (19 Passed)
+## Tech Stack
 
-TrueTix includes automated unit, integration, and concurrency tests covering all 15 core scenarios:
-
-```bash
-cd backend
-npm test
-```
-
-### Verified Test Results:
-```text
-✓ src/modules/booking/booking.service.spec.ts (8 tests)
-  ✓ Scenario 1: User A successfully holds an available seat
-  ✓ Scenario 2: User B cannot hold the same seat when already held
-  ✓ Scenario 3: The lock owner can release the seat
-  ✓ Scenario 4: Another user cannot release that lock (Lua owner check)
-  ✓ Scenario 5: A failed multi-seat reservation rolls back earlier locks
-  ✓ Scenario 6: An expired reservation cannot be checked out
-  ✓ Scenario 7: An expired seat holder is null and can be re-locked
-  ✓ Scenario 15: A user cannot access another user's booking
-
-✓ src/modules/ticket/ticket.service.spec.ts (4 tests)
-  ✓ Scenario 10: Invalid QR signatures are rejected with UnprocessableEntityException
-  ✓ Scenario 11: Valid QR tickets for unpaid bookings are rejected
-  ✓ Scenario 12: A ticket cannot be checked in twice
-  ✓ Scenario 13: Simultaneous check-in requests cannot both succeed (Atomic DB update)
-
-✓ src/modules/payment/payment.service.spec.ts (3 tests)
-  ✓ Scenario 8: A successful payment marks the booking paid and seats as SOLD
-  ✓ Scenario 9: Repeated payment callbacks do not create duplicates (Idempotency)
-  ✓ Rejects payment callback when amount does not match expected booking total
-
-✓ src/modules/websocket/websocket.gateway.spec.ts (3 tests)
-  ✓ Scenario 14: Unauthenticated WebSocket connection without token is immediately rejected
-  ✓ Rejects connection when token verification fails
-  ✓ Successfully authenticates connection and stores user identity from verified JWT
-
-✓ src/modules/booking/booking.concurrency.spec.ts (1 test)
-  ✓ Two users attempt to reserve the exact same seat simultaneously: Exactly one succeeds
-
-Test Files  5 passed (5)
-     Tests  19 passed (19)
-```
+| Layer | Technologies |
+|---|---|
+| **Frontend** | Next.js 16 (App Router), React 19, Tailwind CSS, Zustand, Socket.IO Client |
+| **Backend** | NestJS 10, TypeScript, Prisma ORM, Socket.IO, Passport JWT, bcrypt |
+| **Database** | PostgreSQL 15 |
+| **Caching & Locking** | Redis 7 (`ioredis`) |
+| **Testing** | Vitest |
 
 ---
 
-## 🚀 Quick Start & Local Setup
+## Getting Started
 
-### 1. Start Infrastructure (PostgreSQL & Redis via Docker)
+### Prerequisites
+- Node.js 20+
+- Docker & Docker Compose (or local PostgreSQL 15 and Redis 7 instances)
+
+### 1. Start Infrastructure (PostgreSQL & Redis)
 ```bash
 docker compose up -d db redis
 ```
 
-### 2. Setup Backend & Seed Development Data
+### 2. Backend Setup
 ```bash
 cd backend
 npm install
@@ -138,7 +110,7 @@ npm run start:dev
 - **Backend API**: `http://localhost:4000/api/v1`
 - **Swagger Interactive API Docs**: `http://localhost:4000/api/docs`
 
-### 3. Setup Frontend
+### 3. Frontend Setup
 ```bash
 cd ../frontend
 npm install
@@ -148,9 +120,9 @@ npm run dev
 
 ---
 
-## 👥 Demo Accounts & Concurrency Walkthrough
+## Demo Accounts & Concurrency Testing
 
-Development seed data initializes the following test accounts (`Password123!`):
+The database seeder pre-configures test accounts (`Password123!`):
 
 | Role | Name | Email | Password |
 |---|---|---|---|
@@ -158,28 +130,41 @@ Development seed data initializes the following test accounts (`Password123!`):
 | **Customer B** | Bob Smith | `bob@truetix.com` | `Password123!` |
 | **Admin / Staff** | System Admin | `admin@truetix.com` | `Password123!` |
 
-### 🎬 Two-Browser Concurrency Demonstration:
-1. Open [http://localhost:3000/login](http://localhost:3000/login) in Window 1 and click **Alice (Customer A)** to log in with 1-click.
-2. Open an **Incognito** window at [http://localhost:3000/login](http://localhost:3000/login) and click **Bob (Customer B)** to log in.
-3. Both navigate to [http://localhost:3000/booking/seats?showtimeId=st_demo_1](http://localhost:3000/booking/seats?showtimeId=st_demo_1).
-4. Alice selects seat **E5** and clicks **Continue to Combos**:
+### Testing Real-Time Concurrency (2 Browsers):
+1. Open [http://localhost:3000/login](http://localhost:3000/login) in Window 1 and click **Alice** to log in.
+2. Open an **Incognito** window at [http://localhost:3000/login](http://localhost:3000/login) and click **Bob** to log in.
+3. Both navigate to the demo showtime: [http://localhost:3000/booking/seats?showtimeId=st_demo_1](http://localhost:3000/booking/seats?showtimeId=st_demo_1).
+4. Alice selects seat **E5**:
    - Seat **E5** turns amber with a lock icon in Bob's window in real time via Socket.IO.
-   - If Bob clicks or sends a request for **E5**, the backend rejects it with `409 Conflict: Seat E5 is currently reserved`.
-5. Alice proceeds to checkout and clicks **Simulate Success** on the Mock Payment Sandbox:
+   - If Bob clicks or requests **E5**, the backend rejects it with `409 Conflict: Seat E5 is currently reserved`.
+5. Alice proceeds to checkout and completes payment on the Mock Payment Sandbox:
    - Seat **E5** transitions permanently to dark gray (**SOLD**) across all connected screens.
-   - An HMAC-SHA256 digital QR ticket is generated.
-6. Navigate to the Turnstile Scanner at [http://localhost:3000/admin/tickets/scan](http://localhost:3000/admin/tickets/scan):
-   - Scan or paste Alice's ticket token: **ADMISSION GRANTED**.
+   - A digital QR ticket is generated.
+6. Open the Turnstile Scanner at [http://localhost:3000/admin/tickets/scan](http://localhost:3000/admin/tickets/scan):
+   - Scan Alice's ticket token: **ADMISSION GRANTED**.
    - Attempt to scan the same ticket again: **ACCESS DENIED: Ticket already used**.
 
 ---
 
-## 🌿 Git Branches
+## Testing
 
-- **`main`**: The current high-reliability, interview-focused implementation.
-- **`backup-original`**: Frozen copy of the original codebase before these improvements.
+The backend includes a comprehensive automated test suite covering distributed locking, rollback, idempotency, QR verification, and concurrent race conditions:
+
+```bash
+cd backend
+npm test
+```
+
+### Test Coverage Highlights:
+- **Distributed Locking**: Single-seat lock acquisition, conflict rejection on occupied seats, and lock expiry.
+- **Atomic Lua Release**: Verifies lock owners can release seats and non-owners cannot release another user's hold.
+- **Multi-Seat Rollback**: Verifies that a failure to lock any seat in a batch atomically releases all earlier seats.
+- **Payment Idempotency**: Repeated or concurrent webhook callbacks update 0 rows and return idempotent success.
+- **Turnstile Security**: Signature validation, payment status verification, and atomic duplicate check-in prevention.
+- **Simultaneous Race Conditions**: `Promise.all` concurrency test confirming that when two users reserve the exact same seat simultaneously, exactly one succeeds and one is rejected.
 
 ---
 
-## 📄 License
+## License
+
 This project is licensed under the MIT License.

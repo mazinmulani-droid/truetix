@@ -1,6 +1,6 @@
-# TrueTix SDE Interview Defense Guide
+# TrueTix Technical Deep Dive & Concurrency FAQ
 
-This guide is designed for technical software engineering interviews. It answers common architecture, concurrency, and distributed systems questions based directly on the actual codebase.
+This document addresses key architectural questions, distributed concurrency mechanisms, and system design rationales across the TrueTix codebase.
 
 ---
 
