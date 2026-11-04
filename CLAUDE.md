@@ -1,74 +1,98 @@
-# CLAUDE.md - Root Project Instructions & Guidelines
+# CLAUDE.md — Root Project Instructions & Engineering Guidelines
 
-Welcome to **ClGV - Film Ticket Platform**. This document serves as the global single-source-of-truth for project structure, module communication conventions, overall system architecture, and developer guidelines for both human developers and AI sub-agents.
-
----
-
-## 1. Project Overview & Core Requirements
-
-**ClGV** is a high-concurrency, multi-role film ticket booking platform inspired by CGV. The system addresses critical distributed systems challenges:
-* **Dynamic Multi-Cinema & Multi-City Architecture**: Flexible catalog structure supporting multiple cinema chains/clusters categorized by cities/regions (e.g., TP.HCM, Hà Nội, Đà Nẵng, Cần Thơ). Each cinema contains multiple screening halls with dynamic room matrix layouts.
-* **Admin CMS Dynamic Publishing**: Complete Admin CMS where administrators create, edit, delete, and publish movies, cinema clusters, cities, halls, showtimes, banners, combos, and promotions. All Admin modifications dynamically update and reflect in real-time on the user-facing Homepage (`/home`) and discovery pages.
-* **Frontend Architecture**: Built on **Next.js 15 (App Router)**, React 19, Tailwind CSS, and Shadcn UI. Features a highly polished, premium CGV-inspired UI/UX design system with dark mode aesthetics, interactive seat picker grid, micro-animations, and responsive layouts.
-* **Backend Architecture**: Built on **Node.js** (NestJS / Express TypeScript), PostgreSQL 16, Prisma/TypeORM, and Redis 7.
-* **Payment Integration**: Uses **Mock VNPAY Payment Gateway** (Sandbox flow) and a **Mock QR Code Generation Library** (`qrcode` / `qrcode.react`) for payment QR codes and ticket verification.
-* **Real-time Synchronization**: Live seat matrix status updates via WebSockets (Socket.io) & Redis Pub/Sub.
-* **Double-Booking Prevention**: Two-tier concurrency locking model (**Redlock** + **PostgreSQL pessimistic locking** `SELECT ... FOR UPDATE`).
-* **Stateless Turnstile Check-in**: Secure, tamper-proof check-in verification via **HMAC-SHA256 encrypted QR code tokens**.
+Welcome to **TrueTix — Real-Time Movie Ticket Platform**. This document serves as the global single-source-of-truth for project structure, module communication conventions, system architecture, and engineering principles.
 
 ---
 
-## 2. Directory Architecture & Agent Scope
+## 1. Project Overview & Core Mission
+
+**TrueTix** is an interview-focused, high-concurrency movie ticketing platform built to demonstrate senior SDE-level engineering concepts. The primary technical story is **preventing race conditions and double-booking in a real-time reservation system**.
+
+### Key Architectural Pillars:
+1. **Two-Tier Locking Model**:
+   - **Tier 1 (Ephemeral Holds)**: Redis distributed locks (`SET lock:seat:{showtimeId}:{seatId} {userId} NX EX 600`) with atomic Lua compare-and-delete release.
+   - **Tier 2 (Permanent Source of Truth)**: PostgreSQL ACID transactions with composite unique constraints (`@@unique([showtimeId, seatId])`).
+2. **Single Seat-Reservation Authority**: NestJS backend manages all lock state. The frontend has **zero** in-memory seat-locking stores and syncs live state via Socket.IO.
+3. **Multi-Seat Atomic Rollback**: All-or-nothing seat selection. If any seat in a requested batch fails to lock, all previously acquired locks in that batch are instantly released via Lua scripts.
+4. **Payment Idempotency**: Mock payment callback validates HMAC signatures and executes atomic conditional updates (`updateMany({ where: { id, status: 'PENDING_PAYMENT' } })`) so duplicate webhooks never produce duplicate tickets or database corruption.
+5. **Tamper-Proof Turnstile Verification**: QR ticket verification using standardized `TKT.<payload>.<sig>` tokens with `crypto.timingSafeEqual` and atomic check-ins (`UNUSED` -> `CHECKED_IN`).
+6. **Authenticated WebSockets**: Socket.IO connections require valid JWT tokens; socket identities are extracted directly from verified token claims.
+
+---
+
+## 2. Directory Architecture
 
 ```
-clgv-platform/
-├── CLAUDE.md                                                   # Global project conventions & guidelines (Root)
+truetix/
+├── README.md                                                   # Complete setup, architecture & concurrency demo
+├── CLAUDE.md                                                   # Global project conventions & guidelines
 ├── PROJECT-DETAIL.md                                           # Detailed functional & technical spec
-├── CHANGELOG.md                                                # Version history & execution state log
-├── API-CONTRACT.md                                             # Source of truth API contract (FE & BE contract)
-├── docs/
-│   └── ROADMAP.md                                              # Multi-phase product roadmap
-├── frontend/                                                   # Next.js 15 (App Router), React 19, Tailwind CSS, Shadcn UI, qrcode.react
-└── backend/                                                    # Node.js (NestJS / Express), TypeScript, Prisma/TypeORM, PostgreSQL 16, Redis 7, qrcode
-    ├── CLAUDE.md                                               # Isolated Backend-agent context & conventions
-    ├── RULE.md                                                 # Strict backend rules & system directives
-    ├── DEVELOPMENT-TASK-BY-PHASES-TRACKING-LOGS.md            # Backend-only phase tracking log
-    └── ISSUES-LIST-TRACKING.md                                 # Backend issues & bug fix tracking
+├── API-CONTRACT.md                                             # REST & WebSocket API specification
+├── docs/                                                       # Technical interview documentation suite
+│   ├── ARCHITECTURE.md                                         # System architecture & Mermaid diagrams
+│   ├── BOOKING_FLOW.md                                         # End-to-end booking flow lifecycle
+│   ├── DATABASE.md                                             # ERD & schema consistency constraints
+│   ├── INTERVIEW_GUIDE.md                                      # SDE interview Q&A defense guide
+│   ├── DECISIONS.md                                            # Technical decisions & trade-offs
+│   └── KNOWN_LIMITATIONS.md                                    # System boundaries & production roadmap
+├── frontend/                                                   # Next.js 16 (App Router), React 19, Tailwind CSS, Zustand, Socket.IO Client
+│   ├── src/app/                                                # Pages: Discovery, Seats, Combos, Checkout, Payment Sandbox, Tickets
+│   ├── src/components/                                         # UI components & seat matrix
+│   └── src/stores/                                             # Zustand client state (auth, booking)
+└── backend/                                                    # NestJS 10, TypeScript, Prisma 5, PostgreSQL 15, Redis 7
+    ├── prisma/                                                 # Prisma schema & seed script
+    ├── src/common/                                             # Token utilities, guards, decorators
+    └── src/modules/                                            # Core domain modules:
+        ├── auth/                                               # JWT authentication & bcrypt password hashing
+        ├── booking/                                            # Seat holds, release, checkout & concurrency tests
+        ├── payment/                                            # Mock payment gateway & idempotent webhooks
+        ├── ticket/                                             # QR token generation & atomic turnstile check-in
+        ├── redis/                                              # Atomic locks & Lua compare-and-delete scripts
+        └── websocket/                                          # Authenticated real-time seat status gateway
 ```
 
-### Agent Responsibilities & Rules
-1. **Root Context**: Reads `CLAUDE.md`, `PROJECT-DETAIL.md`, `API-CONTRACT.md`, and `docs/ROADMAP.md`.
-2. **Frontend Agent**: Works in `/frontend`. Must build a highly polished, CGV-inspired UI in **Next.js 15** and adhere strictly to `API-CONTRACT.md`.
-3. **Backend Agent**: Works in `/backend`. Built on **Node.js**, reads `backend/CLAUDE.md` and `backend/RULE.md`, and maintains `DEVELOPMENT-TASK-BY-PHASES-TRACKING-LOGS.md` and `ISSUES-LIST-TRACKING.md`.
-4. **API-CONTRACT Rules**: **CRITICAL**. Before modifying any endpoint, payload schema, error code, or WebSocket event, you MUST update [API-CONTRACT.md](file:///d:/ClGV-Film-Ticket-Platform/API-CONTRACT.md) first.
+---
+
+## 3. Technology Stack Boundaries
+
+To keep the project clean, maintainable, and defensible in technical interviews, strictly observe these constraints:
+- **Preserve**: Next.js 16 (App Router), React 19, Zustand, NestJS 10, TypeScript, PostgreSQL 15, Prisma 5, Redis 7 (ioredis), Socket.IO, JWT + bcrypt, Swagger.
+- **Do NOT introduce**: Kafka, Kubernetes, microservices, MongoDB, GraphQL, or migrate Next.js to Vite.
+- **Maintain Single Authority**: Never re-introduce in-memory lock state on the frontend. NestJS + Redis is the single authority.
 
 ---
 
-## 3. High-Level System Workflows & Concurrency Control
+## 4. Key Engineering Workflows
 
-### 1. Double-Booking Prevention Algorithm
-To handle sudden booking traffic spikes:
-1. **Tier 1 (Transient Lock)**: Distributed Redis Lock (**Redlock**) with key pattern `lock:seat:{showtime_id}:{seat_id}` and a 10-minute TTL. Returns HTTP 409 `SEAT_ALREADY_HELD` immediately on failure.
-2. **Tier 2 (Postgres Transaction)**: Database pessimistic lock via `SELECT ... FOR UPDATE` within an isolated SQL transaction during payment processing.
-3. **Real-time Synchronization**: Socket.io broadcasts seat status transitions (`AVAILABLE` -> `HOLDING` -> `RESERVED` -> `SOLD`) across all connected clients via Redis Pub/Sub.
+### 1. Redis Lock Acquisition (`SET NX EX`)
+```typescript
+// Key pattern: lock:seat:{showtimeId}:{seatId}
+const acquired = await this.redis.set(key, ownerToken, 'EX', ttlSeconds, 'NX');
+return acquired === 'OK';
+```
 
-### 2. Mock VNPAY Payment & QR Code Generation
-* **Payment Flow**: User selects seats -> System locks seats (10-min TTL) -> System invokes `/api/v1/payments/vnpay/create-url` -> Returns Mock VNPAY payment URL & QR code payload generated via mock QR library (`qrcode`) -> User completes mock payment -> Callback `/api/v1/payments/vnpay/callback` triggers ticket issuance.
-* **HMAC QR Ticket Validation**: Signed with `HMAC-SHA256(ticket_id + user_id + showtime_id + timestamp, SECRET_KEY)` and rendered via mock QR library (`qrcode.react` / `qrcode`) for fast turnstile check-in validation.
+### 2. Atomic Lua Lock Release (Compare-and-Delete)
+```lua
+if redis.call("get", KEYS[1]) == ARGV[1] then
+    return redis.call("del", KEYS[1])
+else
+    return 0
+end
+```
 
----
+### 3. Payment Finalization ($transaction)
+```typescript
+await this.prisma.$transaction(async (tx) => {
+  const updated = await tx.booking.updateMany({
+    where: { id: bookingId, status: 'PENDING_PAYMENT' },
+    data: { status: 'PAID' },
+  });
+  if (updated.count === 0) return; // Idempotent no-op
 
-## 4. Coding & Tech Stack Conventions
-
-| Domain | Stack |
-| --- | --- |
-| **Language** | TypeScript (Strict mode enabled across FE & BE) |
-| **Frontend** | Next.js 15 (App Router), React 19, Tailwind CSS, Shadcn UI, Socket.io-client, qrcode.react (CGV-inspired polished UI) |
-| **Backend** | Node.js (NestJS / Express), TypeScript, Prisma ORM / TypeORM, qrcode |
-| **Database** | PostgreSQL 16 |
-| **Caching/Locking** | Redis 7 (ioredis, Redlock, Pub/Sub) |
-| **Payment & QR** | Mock VNPAY Payment Gateway + Mock QR Code Library |
-| **Testing** | Vitest, Supertest, K6 (Concurrency Load Scripts) |
+  // Persist sold seats & generate HMAC tickets
+  ...
+});
+```
 
 ---
 
@@ -76,24 +100,24 @@ To handle sudden booking traffic spikes:
 
 ### Infrastructure (Docker)
 ```bash
-docker-compose up -d           # Start PostgreSQL 16 & Redis 7
-docker-compose down            # Stop infrastructure containers
+docker compose up -d db redis   # Start PostgreSQL 15 & Redis 7
+docker compose down             # Stop containers
 ```
 
-### Backend (Node.js)
+### Backend (NestJS)
 ```bash
 cd backend
-npm install                    # Install dependencies
-npm run db:migrate             # Run database migrations
-npm run db:seed                # Seed initial cinema, hall & showtime data
-npm run start:dev              # Start dev server (http://localhost:4000)
-npm run test                   # Run backend tests
+npm install                     # Install dependencies
+npm run db:push                 # Sync Prisma schema to PostgreSQL
+npm run db:seed                 # Seed test accounts & cinema data
+npm run start:dev               # Start dev server (http://localhost:4000)
+npm test                        # Run full test suite (19 passed)
 ```
 
 ### Frontend (Next.js)
 ```bash
 cd frontend
-npm install                    # Install dependencies
-npm run dev                    # Start Next.js dev server (http://localhost:3000)
-npm run build                  # Build production bundle
+npm install                     # Install dependencies
+npm run dev                     # Start Next.js dev server (http://localhost:3000)
+npm run build                   # Build production bundle
 ```
