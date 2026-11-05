@@ -130,20 +130,19 @@ export class BookingService {
   /**
    * Releases temporarily held seats.
    * Uses an atomic Lua compare-and-delete script in Redis so that locks are ONLY deleted
-   * if the stored token matches the provided reservationId (or fallback userId).
+   * if the stored token matches the provided reservationId.
    */
   async releaseSeats(userId: string, dto: HoldSeatDto) {
     const { showtimeId, seatIds = [], reservationId } = dto;
-    const releasedSeats: string[] = [];
-    const ownerToken = reservationId || userId;
 
-    if (!ownerToken) {
+    if (!reservationId) {
       throw new BadRequestException('reservationId is required to release seats');
     }
 
+    const releasedSeats: string[] = [];
     if (showtimeId && seatIds.length > 0) {
       for (const seatId of seatIds) {
-        const released = await this.redisService.releaseSeatLock(showtimeId, seatId, ownerToken);
+        const released = await this.redisService.releaseSeatLock(showtimeId, seatId, reservationId);
         if (released) {
           releasedSeats.push(seatId);
           this.websocketGateway.broadcastSeatState(showtimeId, seatId, 'AVAILABLE', null, null);
@@ -157,10 +156,10 @@ export class BookingService {
    * Completes checkout and creates a PENDING_PAYMENT booking.
    *
    * Key Engineering Mechanisms:
-   * 1. Reservation Ownership & TTL Verification: Validates in Redis that every seat lock
-   *    is actively held by the specific reservationId. Rejects if expired or belonging to another session.
-   * 2. PostgreSQL ACID Transaction: Verifies showtime validity, computes order total,
-   *    creates Booking, and issues tamper-proof digital tickets with HMAC-SHA256 signatures.
+   * 1. Strict Reservation Ownership: Validates in Redis that every seat lock is actively held
+   *    by the specific reservationId. Rejects if expired or belonging to another session.
+   * 2. PostgreSQL ACID Transaction: Verifies showtime validity, checks seats are neither SOLD nor BLOCKED,
+   *    computes order total, creates Booking, and issues tamper-proof digital tickets with HMAC-SHA256 signatures.
    * 3. HMAC-Signed Payment URL: Generates signature via PaymentService so the mock sandbox can securely verify it.
    */
   async checkout(userId: string, dto: CheckoutBookingDto) {
@@ -174,10 +173,10 @@ export class BookingService {
       throw new BadRequestException('reservationId is required for checkout');
     }
 
-    // 1. Verify reservation ownership and expiry in Redis
+    // 1. Strict reservation ownership verification in Redis
     for (const seatId of seatIds) {
       const lockHolder = await this.redisService.getSeatLockHolder(showtimeId, seatId);
-      if (!lockHolder || (lockHolder !== reservationId && lockHolder !== userId)) {
+      if (!lockHolder || lockHolder !== reservationId) {
         throw new ConflictException({
           code: 'SEAT_LOCK_EXPIRED_OR_NOT_OWNED',
           message: `Seat ${seatId} hold has expired or does not belong to this reservation session. Please reselect your seats.`,
@@ -199,7 +198,7 @@ export class BookingService {
         throw new BadRequestException('This showtime has already started or ended. Cannot complete checkout.');
       }
 
-      // 3. PostgreSQL sanity check: verify seats are not already SOLD in the database
+      // 3. PostgreSQL sanity check: verify seats exist and are neither SOLD nor BLOCKED in the database
       const seats = await tx.showtimeSeat.findMany({
         where: {
           showtimeId,
@@ -213,7 +212,22 @@ export class BookingService {
 
       for (const seat of seats) {
         if (seat.status === 'SOLD') {
-          throw new ConflictException(`Seat ${seat.seatId} has already been purchased by another customer`);
+          throw new ConflictException({
+            code: 'SEAT_ALREADY_SOLD',
+            message: `Seat ${seat.seatId} has already been purchased by another customer`,
+          });
+        }
+        if (seat.status === 'BLOCKED') {
+          throw new ConflictException({
+            code: 'SEAT_BLOCKED',
+            message: `Seat ${seat.seatId} is currently blocked for venue maintenance`,
+          });
+        }
+        if (seat.status !== 'AVAILABLE' && seat.status !== 'HOLDING') {
+          throw new ConflictException({
+            code: 'SEAT_NOT_AVAILABLE',
+            message: `Seat ${seat.seatId} is not available for purchase`,
+          });
         }
       }
 

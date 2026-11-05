@@ -57,43 +57,13 @@ export class PaymentService {
   }
 
   /**
-   * Creates a mock payment gateway URL with simulated HMAC signature
-   */
-  async createMockPaymentUrl(bookingId: string, amount: number) {
-    const booking = await this.prisma.booking.findUnique({ where: { id: bookingId } });
-    if (!booking) {
-      throw new NotFoundException(`Booking not found: ${bookingId}`);
-    }
-
-    if (booking.status === 'PAID') {
-      throw new BadRequestException('Booking is already paid');
-    }
-
-    const signature = this.generatePaymentSignature(bookingId, amount);
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
-    const paymentUrl = `${frontendUrl}/payment/mock-gateway?bookingId=${bookingId}&amount=${amount}&signature=${signature}`;
-
-    await this.prisma.booking.update({
-      where: { id: bookingId },
-      data: { paymentUrl },
-    });
-
-    return {
-      bookingId,
-      amount,
-      signature,
-      paymentUrl,
-    };
-  }
-
-  /**
    * Processes a successful payment callback idempotently:
    * 1. Validates that signature is non-empty and cryptographically valid.
    * 2. Validates that booking exists and paid amount matches expected total.
    * 3. Validates booking state (PENDING_PAYMENT). If already PAID, returns idempotent success.
    * 4. In an isolated PostgreSQL transaction ($transaction):
    *    - Conditionally updates Booking from PENDING_PAYMENT to PAID.
-   *    - Marks all associated seats as SOLD in showtime_seats.
+   *    - Marks all associated seats as SOLD in showtime_seats (ONLY from AVAILABLE or HOLDING state).
    *    - Asserts that updated seat count equals expected ticket count; rolls back if mismatch.
    * 5. Post-commit:
    *    - Force releases temporary Redis locks and broadcasts SOLD to connected WebSockets.
@@ -169,13 +139,14 @@ export class PaymentService {
       }
 
       // Mark all booked seats as permanently SOLD in PostgreSQL
+      // CRITICAL: Must ONLY transition seats currently in AVAILABLE or HOLDING state (rejecting BLOCKED and already SOLD seats)
       const seatIds = booking.tickets.map((t) => t.seatId);
       if (seatIds.length > 0) {
         const seatUpdateResult = await tx.showtimeSeat.updateMany({
           where: {
             showtimeId: booking.showtimeId,
             seatId: { in: seatIds },
-            status: { not: 'SOLD' },
+            status: { in: ['AVAILABLE', 'HOLDING'] },
           },
           data: { status: 'SOLD' },
         });
@@ -183,7 +154,7 @@ export class PaymentService {
         // Ensure every seat was successfully transitioned. If mismatch, roll back entire transaction.
         if (seatUpdateResult.count !== seatIds.length) {
           throw new ConflictException(
-            `Seat finalization mismatch: expected ${seatIds.length} seats, updated ${seatUpdateResult.count}`,
+            `Seat finalization mismatch: expected ${seatIds.length} available/holding seats, but updated ${seatUpdateResult.count}. Seats may already be sold or blocked.`,
           );
         }
       }
@@ -215,9 +186,14 @@ export class PaymentService {
   }
 
   /**
-   * Handle failed or cancelled payment
+   * Handle failed or cancelled payment with mandatory HMAC cryptographic signature verification
    */
-  async processFailedPayment(bookingId: string) {
+  async processFailedPayment(bookingId: string, amount: number, signature: string) {
+    // 1. Mandatory signature verification
+    if (!signature || typeof signature !== 'string' || signature.trim() === '') {
+      throw new BadRequestException('Payment provider signature is required to cancel a booking');
+    }
+
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: { tickets: true },
@@ -229,6 +205,18 @@ export class PaymentService {
 
     if (booking.status === 'PAID') {
       return { success: false, message: 'Cannot cancel an already paid booking' };
+    }
+
+    // 2. Validate amount matches booking total
+    if (Number(amount) !== Number(booking.totalAmount)) {
+      throw new BadRequestException(
+        `Payment amount mismatch: expected ${booking.totalAmount}, got ${amount}`,
+      );
+    }
+
+    // 3. Verify cryptographic HMAC signature
+    if (!this.verifyPaymentSignature(bookingId, amount, signature)) {
+      throw new BadRequestException('Invalid payment provider signature');
     }
 
     const cancelResult = await this.prisma.booking.updateMany({

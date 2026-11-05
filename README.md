@@ -8,7 +8,7 @@
 [![Prisma](https://img.shields.io/badge/orm-Prisma%205-blue.svg)](https://prisma.io)
 [![PostgreSQL](https://img.shields.io/badge/database-PostgreSQL%2015-blue.svg)](https://postgresql.org)
 [![Redis](https://img.shields.io/badge/cache-Redis%207-critical.svg)](https://redis.io)
-[![Tests](https://img.shields.io/badge/tests-33%20passed-success.svg)](https://vitest.dev)
+[![Tests](https://img.shields.io/badge/tests-39%20passed-success.svg)](https://vitest.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
@@ -149,22 +149,25 @@ The database seeder pre-configures test accounts (`Password123!`):
 
 ## Testing
 
-The backend includes a comprehensive automated test suite with **33 passing tests** across 6 test suites covering distributed locking, rollback, idempotency, QR verification, and concurrent race conditions:
+The backend includes a comprehensive automated test suite with **39 passing tests** across 6 test suites covering distributed locking, rollback, idempotency, QR verification, signature-verified cancellation, and concurrent race conditions:
 
 ```bash
 cd backend
 npm test
 ```
 
-### Verified Test Results (33 Passed):
+### Verified Test Results (39 Passed):
 ```text
-✓ src/modules/booking/booking.service.spec.ts (10 tests)
+✓ src/modules/booking/booking.service.spec.ts (13 tests)
   ✓ User A successfully holds an available seat with a unique reservation ID
   ✓ User B cannot hold the same seat when already held
   ✓ The reservation owner can release the seat using their reservation token
+  ✓ releaseSeats strictly requires reservationId
   ✓ Another reservation session cannot release that lock (Lua compare-and-delete check)
   ✓ A failed multi-seat reservation rolls back earlier locks using the reservation token
   ✓ One user with two separate reservation sessions cannot cross-release or checkout each other
+  ✓ Checkout strictly enforces reservationId and rejects userId as alternative
+  ✓ Checkout strictly rejects BLOCKED seats
   ✓ An expired reservation cannot be checked out
   ✓ An expired seat holder is null and can be re-locked by another user
   ✓ Fails safely when Redis is unavailable
@@ -178,13 +181,16 @@ npm test
   ✓ A ticket cannot be checked in twice
   ✓ Simultaneous check-in requests cannot both succeed (Atomic DB conditional update)
 
-✓ src/modules/payment/payment.service.spec.ts (6 tests)
-  ✓ A successful payment marks the booking paid and seats as SOLD
+✓ src/modules/payment/payment.service.spec.ts (9 tests)
+  ✓ A successful payment marks the booking paid and seats as SOLD (only from AVAILABLE/HOLDING)
   ✓ Repeated payment callbacks return idempotent cached success without re-executing transitions
   ✓ Rejects payment callback when signature is missing
   ✓ Rejects payment callback when signature is forged or invalid
   ✓ Rejects payment callback when amount does not match expected booking total
   ✓ Payment seat update count mismatch triggers transaction rollback
+  ✓ Rejects payment cancellation without a valid HMAC signature
+  ✓ Successfully cancels pending payment with valid signature and releases locks
+  ✓ Refuses to cancel an already PAID booking even with signature
 
 ✓ src/modules/redis/redis.service.spec.ts (6 tests)
   ✓ Throws ServiceUnavailableException when Redis is offline
@@ -204,7 +210,7 @@ npm test
   ✓ Two users attempt to reserve the exact same seat simultaneously: Exactly one succeeds
 
 Test Files  6 passed (6)
-     Tests  33 passed (33)
+     Tests  39 passed (39)
 ```
 
 ---

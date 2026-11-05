@@ -87,9 +87,9 @@ Layer 3: Database Composite Unique Constraints
 2. **Layer 2 (Checkout & Payment)**: During payment callback processing, `PaymentService` runs inside a PostgreSQL transaction (`$transaction`):
    ```sql
    UPDATE bookings SET status = 'PAID' WHERE id = :id AND status = 'PENDING_PAYMENT';
-   UPDATE showtime_seats SET status = 'SOLD' WHERE showtime_id = :stId AND seat_id IN (:seats) AND status != 'SOLD';
+   UPDATE showtime_seats SET status = 'SOLD' WHERE showtime_id = :stId AND seat_id IN (:seats) AND status IN ('AVAILABLE', 'HOLDING');
    ```
-   If the number of updated seats does not match the expected ticket count, the transaction rolls back immediately.
+   Crucially, this query only transitions seats from `AVAILABLE` or `HOLDING` state, rejecting `BLOCKED` and already `SOLD` seats. If the number of updated seats does not match the expected ticket count, the transaction rolls back immediately.
 3. **Layer 3 (Database Constraint)**: Even if application logic failed, the database schema enforces `@@unique([showtimeId, seatId])`, preventing duplicate records.
 
 ---
@@ -124,10 +124,8 @@ Layer 3: Database Composite Unique Constraints
 
 ### Case B: Payment is Cancelled or Fails
 - The user clicks "Cancel Payment" on the sandbox gateway.
-- Gateway calls `/payments/mock/callback?status=CANCELLED`.
-- `PaymentService.processFailedPayment` checks that the booking is not already `PAID`.
-- Updates `Booking` from `PENDING_PAYMENT` to `CANCELLED`.
-- Releases the Redis seat locks and broadcasts `AVAILABLE` to all connected clients via Socket.IO.
+- Gateway calls `/payments/mock/callback?bookingId=...&amount=...&status=CANCELLED&signature=...`.
+- `PaymentService.processFailedPayment` requires and verifies the HMAC cryptographic signature, checks that the booking is not already `PAID`, validates that the amount matches `booking.totalAmount`, transitions status from `PENDING_PAYMENT` to `CANCELLED`, releases Redis seat locks, and broadcasts `AVAILABLE` to all connected clients via Socket.IO. Anyone attempting to forge a cancellation request without a valid HMAC signature is rejected with `400 Bad Request`.
 
 ---
 
@@ -276,6 +274,7 @@ If scaling TrueTix to handle national flash sales (e.g. 50,000 requests/sec):
 | `backend/src/modules/booking/booking.service.ts` | Coordinates seat holding, multi-seat rollback, Redis ownership validation, and checkout transaction. |
 | `backend/src/modules/booking/booking.controller.ts` | Authenticated REST endpoints: `/hold-seat`, `/release-seat`, `/checkout`, `/my-bookings`. |
 | `backend/src/modules/redis/redis.service.ts` | Atomic distributed locking (`SET NX EX`), Lua compare-and-delete script, connection health check. |
+| `backend/src/modules/payment/payment.controller.ts` | Unified callback `/payments/mock/callback` enforcing cryptographic HMAC signature validation on payment success and cancellation. |
 | `backend/src/modules/payment/payment.service.ts` | HMAC payment signature generation/validation, idempotent payment callback processing, post-commit lock cleanup. |
 | `backend/src/modules/ticket/ticket.service.ts` | HMAC QR token verification, showtime expiry check, atomic conditional ticket check-in (`UNUSED` -> `CHECKED_IN`). |
 | `backend/src/common/utils/ticket-token.util.ts` | Standardized `TKT.<payload>.<sig>` token encoding, decoding, and timing-safe signature verification. |

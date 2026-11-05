@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Query, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { PaymentService } from './payment.service';
 
@@ -6,15 +6,6 @@ import { PaymentService } from './payment.service';
 @Controller('payments')
 export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
-
-  @Post('mock/create-url')
-  @ApiOperation({ summary: 'Create signed mock payment gateway URL and QR code' })
-  async createMockPaymentUrl(@Body() body: { bookingId: string; amount: number }) {
-    if (!body?.bookingId || body.amount === undefined) {
-      throw new BadRequestException('bookingId and amount are required');
-    }
-    return this.paymentService.createMockPaymentUrl(body.bookingId, Number(body.amount));
-  }
 
   @Get('mock/callback')
   @ApiOperation({ summary: 'Mock payment gateway callback handler with HMAC validation' })
@@ -32,17 +23,22 @@ export class PaymentController {
       throw new BadRequestException('bookingId and amount are required');
     }
 
-    if (status === 'CANCELLED' || status === 'FAILED') {
-      return this.paymentService.processFailedPayment(bookingId);
-    }
-
     if (!signature) {
       throw new BadRequestException('signature is required');
     }
 
+    const numericAmount = Number(amount);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      throw new BadRequestException('amount must be a valid positive number');
+    }
+
+    if (status === 'CANCELLED' || status === 'FAILED') {
+      return this.paymentService.processFailedPayment(bookingId, numericAmount, signature);
+    }
+
     return this.paymentService.processSuccessfulPayment(
       bookingId,
-      Number(amount),
+      numericAmount,
       signature,
       'MOCK_GATEWAY',
     );

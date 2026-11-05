@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { BookingService } from './booking.service';
-import { ConflictException, ForbiddenException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException, ServiceUnavailableException, BadRequestException } from '@nestjs/common';
 
 describe('BookingService Tests', () => {
   let service: BookingService;
@@ -105,6 +105,15 @@ describe('BookingService Tests', () => {
     expect(websocketMock.broadcastSeatState).toHaveBeenCalledWith('st_456', 'A1', 'AVAILABLE', null, null);
   });
 
+  it('releaseSeats strictly requires reservationId', async () => {
+    await expect(
+      service.releaseSeats('usr_alice', {
+        showtimeId: 'st_456',
+        seatIds: ['A1'],
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
   it('Another reservation session cannot release that lock (Lua compare-and-delete check)', async () => {
     redisMock.releaseSeatLock.mockResolvedValue(false);
 
@@ -147,6 +156,39 @@ describe('BookingService Tests', () => {
     await expect(
       service.checkout('usr_alice', {
         reservationId: 'res_session_B',
+        showtimeId: 'st_456',
+        seatIds: ['A1'],
+        paymentMethod: 'MOCK_GATEWAY',
+      }),
+    ).rejects.toThrow(ConflictException);
+  });
+
+  it('Checkout strictly enforces reservationId and rejects userId as alternative', async () => {
+    redisMock.getSeatLockHolder.mockResolvedValue('usr_alice'); // Redis has userId, but checkout requires reservationId
+
+    await expect(
+      service.checkout('usr_alice', {
+        reservationId: 'res_alice_123',
+        showtimeId: 'st_456',
+        seatIds: ['A1'],
+        paymentMethod: 'MOCK_GATEWAY',
+      }),
+    ).rejects.toThrow(ConflictException);
+  });
+
+  it('Checkout strictly rejects BLOCKED seats', async () => {
+    redisMock.getSeatLockHolder.mockResolvedValue('res_valid_123');
+    prismaMock.showtime.findUnique.mockResolvedValue({
+      id: 'st_456',
+      startTime: new Date(Date.now() + 3600 * 1000),
+    });
+    prismaMock.showtimeSeat.findMany.mockResolvedValue([
+      { seatId: 'A1', status: 'BLOCKED', priceModifier: 1.0 },
+    ]);
+
+    await expect(
+      service.checkout('usr_alice', {
+        reservationId: 'res_valid_123',
         showtimeId: 'st_456',
         seatIds: ['A1'],
         paymentMethod: 'MOCK_GATEWAY',
