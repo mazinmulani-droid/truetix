@@ -106,10 +106,6 @@ export class MovieService {
           },
           orderBy: { startTime: 'asc' },
         },
-        reviews: {
-          include: { user: { select: { id: true, fullName: true } } },
-          orderBy: { createdAt: 'desc' },
-        },
       },
     });
 

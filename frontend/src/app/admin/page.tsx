@@ -1,218 +1,150 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Film, MapPin, Ticket, Users } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { api } from '@/lib/axios';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import Link from 'next/link';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+  QrCode,
+  Film,
+  MapPin,
+  CalendarRange,
+  Users,
+  Building2,
+  ArrowRight,
+  ShieldCheck,
+  Cpu,
+} from 'lucide-react';
+
+const adminActions = [
+  {
+    title: 'Turnstile Ticket Scanner',
+    description: 'Verify HMAC QR tickets and admit attendees at cinema entrances.',
+    href: '/admin/tickets/scan',
+    icon: QrCode,
+    badge: 'Core Feature',
+    color: 'text-emerald-400',
+    bgColor: 'bg-emerald-500/10 border-emerald-500/20',
+  },
+  {
+    title: 'Film Catalog Management',
+    description: 'Create, update, and manage movies currently showing or coming soon.',
+    href: '/admin/movies',
+    icon: Film,
+    badge: 'Catalog',
+    color: 'text-amber-400',
+    bgColor: 'bg-amber-500/10 border-amber-500/20',
+  },
+  {
+    title: 'Cinemas & Theaters',
+    description: 'Manage physical theater locations, auditoriums, and screen types.',
+    href: '/admin/cinemas',
+    icon: MapPin,
+    badge: 'Venues',
+    color: 'text-blue-400',
+    bgColor: 'bg-blue-500/10 border-blue-500/20',
+  },
+  {
+    title: 'Showtime Scheduling',
+    description: 'Schedule movie screenings across auditoriums and set base ticket pricing.',
+    href: '/admin/showtimes',
+    icon: CalendarRange,
+    badge: 'Schedules',
+    color: 'text-rose-400',
+    bgColor: 'bg-rose-500/10 border-rose-500/20',
+  },
+  {
+    title: 'User Accounts & Roles',
+    description: 'Inspect registered users, manage system permissions, and view audit history.',
+    href: '/admin/users',
+    icon: Users,
+    badge: 'Security',
+    color: 'text-purple-400',
+    bgColor: 'bg-purple-500/10 border-purple-500/20',
+  },
+  {
+    title: 'Cities & Regions',
+    description: 'Organize cinema chains by geographical cities and distribution zones.',
+    href: '/admin/cities',
+    icon: Building2,
+    badge: 'Geography',
+    color: 'text-cyan-400',
+    bgColor: 'bg-cyan-500/10 border-cyan-500/20',
+  },
+];
 
 export default function AdminDashboardPage() {
-  const [stats, setStats] = useState({
-    totalMovies: 0,
-    totalCinemas: 0,
-    totalTickets: 0,
-    totalUsers: 0,
-    revenue: 0,
-    timeline: [],
-    occupancy: [],
-    recentBookings: []
-  });
-
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const [dashboardRes, revenueRes, occupancyRes, membersRes] = await Promise.all([
-          api.get('/admin/analytics/dashboard'),
-          api.get('/admin/analytics/revenue'),
-          api.get('/admin/analytics/occupancy'),
-          api.get('/admin/analytics/members'),
-        ]);
-
-        const dashboard = dashboardRes.data?.data || dashboardRes.data;
-        const revenueData = revenueRes.data?.data || revenueRes.data;
-        const occupancyData = occupancyRes.data?.data || occupancyRes.data;
-        const membersData = membersRes.data?.data || membersRes.data;
-
-        setStats({
-          totalMovies: dashboard.activeMoviesCount || 0,
-          totalCinemas: (revenueData?.byCinema || []).length || 0, 
-          totalTickets: dashboard.totalTicketsSold || 0,
-          totalUsers: membersData?.totalUsers || 0,
-          revenue: dashboard.totalRevenue || 0,
-          timeline: revenueData?.timeline || [],
-          occupancy: occupancyData?.showtimes?.slice(0, 5) || [],
-          recentBookings: dashboard.recentBookings || []
-        });
-      } catch (error) {
-        console.error("Failed to fetch dashboard stats", error);
-        // Fallback sample analytics for standalone demo mode
-        setStats({
-          totalMovies: 12,
-          totalCinemas: 6,
-          totalTickets: 1420,
-          totalUsers: 850,
-          revenue: 284000000,
-          timeline: [
-            { date: '18/08', revenue: 32000000 },
-            { date: '19/08', revenue: 410000 },
-            { date: '20/08', revenue: 38000000 },
-            { date: '21/08', revenue: 52000000 },
-            { date: '22/08', revenue: 64000000 },
-            { date: '23/08', revenue: 55000 },
-          ] as any,
-          occupancy: [
-            { movieTitle: 'Avatar: Way of Water', hallName: 'IMAX 1', occupancyRate: 92 },
-            { movieTitle: 'Oppenheimer', hallName: 'Screen 2', occupancyRate: 85 },
-            { movieTitle: 'Dune: Part Two', hallName: 'Screen 3', occupancyRate: 78 },
-            { movieTitle: 'Deadpool & Wolverine', hallName: 'Screen 4', occupancyRate: 95 },
-          ] as any,
-          recentBookings: [
-            { id: 'BK-9921', user: { fullName: 'Alex Smith' }, showtime: { movie: { title: 'Avatar: Way of Water' } }, totalAmount: 240000, createdAt: new Date().toISOString() },
-            { id: 'BK-9920', user: { fullName: 'Sarah Johnson' }, showtime: { movie: { title: 'Dune: Part Two' } }, totalAmount: 180000, createdAt: new Date(Date.now() - 3600000).toISOString() },
-            { id: 'BK-9919', user: { fullName: 'Michael Brown' }, showtime: { movie: { title: 'Oppenheimer' } }, totalAmount: 320000, createdAt: new Date(Date.now() - 7200000).toISOString() },
-          ] as any
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchStats();
-  }, []);
-
   return (
-    <div className="space-y-8">
-      <h1 className="text-3xl font-bold border-l-4 border-primary pl-4">Dashboard & Analytics</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="bg-card/40 backdrop-blur-md border border-border/50 shadow-lg hover:bg-card/60 transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
-            <Ticket className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">
-              {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(stats.revenue)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">From completed bookings</p>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-card/40 backdrop-blur-md border border-border/50 shadow-lg hover:bg-card/60 transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Now Showing Films</CardTitle>
-            <Film className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">{stats.totalMovies}</div>
-            <p className="text-xs text-muted-foreground mt-1">Status: NOW_SHOWING</p>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-card/40 backdrop-blur-md border border-border/50 shadow-lg hover:bg-card/60 transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Tickets Sold</CardTitle>
-            <MapPin className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">{stats.totalTickets}</div>
-            <p className="text-xs text-muted-foreground mt-1">Total issued tickets</p>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-card/40 backdrop-blur-md border border-border/50 shadow-lg hover:bg-card/60 transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Members</CardTitle>
-            <Users className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">{stats.totalUsers}</div>
-            <p className="text-xs text-muted-foreground mt-1">Total registered users</p>
-          </CardContent>
-        </Card>
+    <div className="space-y-8 max-w-6xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/50 pb-6">
+        <div>
+          <h1 className="text-3xl font-black uppercase tracking-wider text-white flex items-center gap-3">
+            <span className="w-2.5 h-8 bg-primary rounded-full shadow-[0_0_12px_rgba(225,29,72,0.8)]" />
+            Administration & Operations
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            TrueTix Ticket Reservation Platform Control Center
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-3 py-1.5 rounded-full text-xs font-semibold">
+            <ShieldCheck className="w-4 h-4" />
+            Authenticated Administrator
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card className="col-span-1 bg-card/40 backdrop-blur-md border border-border/50 shadow-lg">
-          <CardHeader>
-            <CardTitle>Revenue Timeline</CardTitle>
-          </CardHeader>
-          <CardContent className="h-80 w-full pt-4">
-            {!isLoading && stats.timeline.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={stats.timeline}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                  <XAxis dataKey="date" stroke="#888" />
-                  <YAxis stroke="#888" tickFormatter={(val) => `${val / 1000000}M`} />
-                  <Tooltip 
-                    formatter={(value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(value)}
-                    contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px' }}
-                  />
-                  <Line type="monotone" dataKey="revenue" stroke="#ff3b30" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 8 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-muted-foreground">
-                {isLoading ? 'Loading...' : 'No revenue data available'}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="col-span-1 bg-card/40 backdrop-blur-md border border-border/50 shadow-lg">
-          <CardHeader>
-            <CardTitle>Auditorium Occupancy Rate (%)</CardTitle>
-          </CardHeader>
-          <CardContent className="h-80 w-full pt-4">
-            {!isLoading && stats.occupancy.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats.occupancy}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                  <XAxis dataKey="movieTitle" stroke="#888" tick={{ fontSize: 10 }} />
-                  <YAxis stroke="#888" domain={[0, 100]} />
-                  <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px' }} />
-                  <Bar dataKey="occupancyPercentage" fill="#ff3b30" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-muted-foreground">
-                {isLoading ? 'Loading...' : 'No occupancy data available'}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        
-        <Card className="col-span-2 bg-card/40 backdrop-blur-md border border-border/50 shadow-lg">
-          <CardHeader>
-            <CardTitle>Recent Bookings</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {!isLoading && stats.recentBookings.length > 0 ? (
-                stats.recentBookings.map((booking: any) => (
-                  <div key={booking.id} className="flex items-center justify-between border-b border-border pb-4 last:border-0 last:pb-0">
-                    <div>
-                      <p className="font-medium">{booking.user?.fullName || booking.user?.email || 'Guest User'}</p>
-                      <p className="text-sm text-muted-foreground">Ticket booking for {booking.showtime?.movie?.title}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-primary">
-                        {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(booking.totalAmount)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(booking.createdAt).toLocaleString('en-GB')}
-                      </p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center text-muted-foreground py-4">{isLoading ? 'Loading...' : 'No recent transactions'}</div>
-              )}
+      {/* Engineering Architecture Highlight */}
+      <Card className="bg-zinc-950/70 border-white/10 backdrop-blur-md">
+        <CardContent className="p-6">
+          <div className="flex items-start gap-4">
+            <div className="bg-primary/20 p-3 rounded-xl border border-primary/30 text-primary">
+              <Cpu className="w-6 h-6" />
             </div>
-          </CardContent>
-        </Card>
+            <div className="space-y-1">
+              <h3 className="font-bold text-white text-base">
+                Engineering Focus: High-Reliability Seat Reservation
+              </h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                TrueTix demonstrates atomic seat locking via Redis (<code>SET NX EX</code>), real-time WebSocket state synchronization, ACID transaction checkout in PostgreSQL, mock payment HMAC signature verification, and tamper-proof digital QR ticket verification with atomic single check-in.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Navigation Quick Action Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {adminActions.map((action) => {
+          const Icon = action.icon;
+          return (
+            <Link key={action.href} href={action.href} className="group block">
+              <Card className="h-full bg-card/40 backdrop-blur-md border border-border/50 shadow-lg hover:border-primary/50 hover:bg-card/70 transition-all duration-300 flex flex-col justify-between">
+                <CardHeader>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className={`p-2.5 rounded-lg border ${action.bgColor} ${action.color}`}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                      {action.badge}
+                    </span>
+                  </div>
+                  <CardTitle className="text-lg font-bold text-white group-hover:text-primary transition-colors">
+                    {action.title}
+                  </CardTitle>
+                  <CardDescription className="text-xs text-muted-foreground leading-relaxed">
+                    {action.description}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="flex items-center text-xs font-semibold text-primary group-hover:translate-x-1 transition-transform gap-1">
+                    Open Management <ArrowRight className="w-3.5 h-3.5" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

@@ -1,7 +1,10 @@
-import { Controller, Get, Post, Param, Body, Headers, UseGuards, Req, BadRequestException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiHeader } from '@nestjs/swagger';
+import { Controller, Get, Post, Param, Body, UseGuards, Req, BadRequestException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { TicketService } from './ticket.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { Role } from '@prisma/client';
 
 @ApiTags('Tickets & QR Check-in Scanner')
 @Controller('tickets')
@@ -25,10 +28,11 @@ export class TicketController {
   }
 
   @Post('verify-qr')
-  @ApiOperation({ summary: 'Verify and check-in QR ticket at cinema turnstile' })
-  @ApiHeader({ name: 'X-Scanner-Key', description: 'Secret Key issued to turnstile scanner device' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.SCANNER)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Verify and check-in QR ticket at cinema turnstile (Admin/Scanner only)' })
   async verifyQrTicket(
-    @Headers('x-scanner-key') scannerKey: string,
     @Body('qrToken') qrToken?: string,
     @Body('qrPayload') qrPayload?: string,
   ) {
@@ -36,6 +40,6 @@ export class TicketController {
     if (!token) {
       throw new BadRequestException('qrToken or qrPayload is required');
     }
-    return this.ticketService.verifyQrTicket(scannerKey, token);
+    return this.ticketService.verifyQrTicket(token);
   }
 }

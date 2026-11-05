@@ -55,15 +55,7 @@ export default function TicketScanPage() {
     setTicketDetails(null);
 
     try {
-      const res = await api.post(
-        '/tickets/verify-qr',
-        { qrToken },
-        {
-          headers: {
-            'x-scanner-key': process.env.NEXT_PUBLIC_TURNSTILE_SECRET_KEY || 'turnstile-secret-key-2026',
-          },
-        }
-      );
+      const res = await api.post('/tickets/verify-qr', { qrToken });
 
       if (res && res.data) {
         const data = res.data;

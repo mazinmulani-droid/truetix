@@ -395,36 +395,6 @@ export default function AdminMoviesPage() {
 
 // Extracted form fields component to avoid duplication
 function MovieFormFields({ formData, setFormData }: { formData: any, setFormData: any }) {
-  const [uploading, setUploading] = useState(false);
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-    const uploadData = new FormData();
-    uploadData.append('file', file);
-
-    try {
-      const res = await api.post('/upload', uploadData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      if (res.success) {
-        setFormData((prev: any) => ({ ...prev, posterUrl: res.data.url }));
-        toast.success('Image uploaded successfully');
-      } else {
-        toast.error('Image upload failed');
-      }
-    } catch (error: any) {
-      console.error('Upload failed', error);
-      toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Server error');
-    } finally {
-      setUploading(false);
-    }
-  };
-
   return (
     <div className="grid gap-4 py-4">
       <div className="grid grid-cols-2 gap-4">
@@ -475,21 +445,17 @@ function MovieFormFields({ formData, setFormData }: { formData: any, setFormData
         </div>
       </div>
       <div className="space-y-2">
-        <Label>Poster Image</Label>
+        <Label>Poster Image URL</Label>
         <div className="flex flex-col gap-3">
           {formData.posterUrl && (
             <img src={formData.posterUrl} alt="Poster preview" className="w-32 h-48 object-cover rounded-md border border-border" />
           )}
-          <div className="flex gap-2 items-center">
-            <Input 
-              type="file" 
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              onChange={handleImageUpload}
-              disabled={uploading}
-              className="flex-1 cursor-pointer"
-            />
-            {uploading && <span className="text-sm text-muted-foreground animate-pulse">Uploading...</span>}
-          </div>
+          <Input 
+            type="url"
+            placeholder="https://images.unsplash.com/... or image link"
+            value={formData.posterUrl}
+            onChange={e => setFormData({...formData, posterUrl: e.target.value})}
+          />
         </div>
       </div>
       <div className="space-y-2">

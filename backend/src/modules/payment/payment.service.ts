@@ -9,7 +9,6 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
 import { RedisService } from '../redis/redis.service';
-import * as QRCode from 'qrcode';
 import * as crypto from 'crypto';
 
 /**
@@ -58,7 +57,7 @@ export class PaymentService {
   }
 
   /**
-   * Creates a mock payment gateway URL with QR payload and simulated HMAC signature
+   * Creates a mock payment gateway URL with simulated HMAC signature
    */
   async createMockPaymentUrl(bookingId: string, amount: number) {
     const booking = await this.prisma.booking.findUnique({ where: { id: bookingId } });
@@ -74,9 +73,6 @@ export class PaymentService {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
     const paymentUrl = `${frontendUrl}/payment/mock-gateway?bookingId=${bookingId}&amount=${amount}&signature=${signature}`;
 
-    const qrPayload = `TRUETIX_PAY:${bookingId}:${amount}:${signature.substring(0, 8)}`;
-    const qrDataUrl = await QRCode.toDataURL(qrPayload);
-
     await this.prisma.booking.update({
       where: { id: bookingId },
       data: { paymentUrl },
@@ -87,8 +83,6 @@ export class PaymentService {
       amount,
       signature,
       paymentUrl,
-      qrPayload,
-      qrDataUrl,
     };
   }
 
@@ -96,7 +90,7 @@ export class PaymentService {
    * Processes a successful payment callback idempotently:
    * 1. Validates that signature is non-empty and cryptographically valid.
    * 2. Validates that booking exists and paid amount matches expected total.
-   * 3. Validates booking state (PENDING_PAYMENT). If already PAID, returns cached success.
+   * 3. Validates booking state (PENDING_PAYMENT). If already PAID, returns idempotent success.
    * 4. In an isolated PostgreSQL transaction ($transaction):
    *    - Conditionally updates Booking from PENDING_PAYMENT to PAID.
    *    - Marks all associated seats as SOLD in showtime_seats.
@@ -129,7 +123,7 @@ export class PaymentService {
     // 3. Idempotency: If already paid, safely return current record without re-running transactions
     if (booking.status === 'PAID') {
       this.logger.log(`Booking ${bookingId} already marked PAID. Returning idempotent success.`);
-      return { success: true, data: booking, message: 'Booking already paid (idempotent)' };
+      return { success: true, bookingId: booking.id, status: 'PAID', message: 'Booking already paid (idempotent)' };
     }
 
     if (booking.status === 'CANCELLED' || booking.status === 'EXPIRED') {
@@ -204,7 +198,6 @@ export class PaymentService {
     });
 
     // 7. Post-Transaction: Force release Redis temporary locks & broadcast real-time SOLD state
-    // Wrapped in try/catch so if Redis is temporarily unreachable, PostgreSQL remains the authority
     try {
       for (const t of updatedBooking.tickets) {
         await this.redisService.forceReleaseSeatLock(updatedBooking.showtimeId, t.seatId);
@@ -238,19 +231,21 @@ export class PaymentService {
       return { success: false, message: 'Cannot cancel an already paid booking' };
     }
 
-    await this.prisma.booking.updateMany({
+    const cancelResult = await this.prisma.booking.updateMany({
       where: { id: bookingId, status: 'PENDING_PAYMENT' },
       data: { status: 'CANCELLED' },
     });
 
-    // Release Redis seat locks so seats become available again
-    try {
-      for (const t of booking.tickets) {
-        await this.redisService.forceReleaseSeatLock(booking.showtimeId, t.seatId);
-        this.websocketGateway.broadcastSeatState(booking.showtimeId, t.seatId, 'AVAILABLE');
+    if (cancelResult.count > 0) {
+      // Release Redis seat locks so seats become available again
+      try {
+        for (const t of booking.tickets) {
+          await this.redisService.forceReleaseSeatLock(booking.showtimeId, t.seatId);
+          this.websocketGateway.broadcastSeatState(booking.showtimeId, t.seatId, 'AVAILABLE');
+        }
+      } catch (err: any) {
+        this.logger.warn(`Failed to release seat locks on payment cancellation: ${err.message}`);
       }
-    } catch (err: any) {
-      this.logger.warn(`Failed to release seat locks on payment cancellation: ${err.message}`);
     }
 
     return { success: true, message: 'Booking marked as cancelled and seats released' };

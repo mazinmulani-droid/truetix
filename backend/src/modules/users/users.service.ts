@@ -2,20 +2,18 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserQueryDto } from './dto/user-query.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
-import { UpdateUserMembershipDto } from './dto/update-user-membership.dto';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // Admin xem danh sách tất cả người dùng (hỗ trợ phân trang, lọc role, hạng thẻ, tìm kiếm)
+  // Admin view all users (pagination, role filter, search)
   async findAll(query: UserQueryDto) {
-    const { role, membershipTier, search, page = 1, limit = 10 } = query;
+    const { role, search, page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
 
     const where: any = {
       ...(role && { role }),
-      ...(membershipTier && { membershipTier }),
       ...(search && {
         OR: [
           { email: { contains: search, mode: 'insensitive' } },
@@ -35,10 +33,6 @@ export class UsersService {
           fullName: true,
           phone: true,
           role: true,
-          membershipTier: true,
-          points: true,
-          cgvCardBalance: true,
-          isU22Verified: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -57,7 +51,7 @@ export class UsersService {
     };
   }
 
-  // Admin xem chi tiết người dùng
+  // Admin view user details
   async findOne(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -67,10 +61,6 @@ export class UsersService {
         fullName: true,
         phone: true,
         role: true,
-        membershipTier: true,
-        points: true,
-        cgvCardBalance: true,
-        isU22Verified: true,
         createdAt: true,
         updatedAt: true,
         bookings: {
@@ -96,20 +86,20 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException({
         code: 'USER_NOT_FOUND',
-        message: 'Không tìm thấy người dùng với ID này',
+        message: 'User not found',
       });
     }
 
     return user;
   }
 
-  // Admin cập nhật quyền (Role) của người dùng
+  // Admin update user role
   async updateRole(id: string, dto: UpdateUserRoleDto) {
     const existing = await this.prisma.user.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException({
         code: 'USER_NOT_FOUND',
-        message: 'Không tìm thấy người dùng',
+        message: 'User not found',
       });
     }
 
@@ -126,51 +116,20 @@ export class UsersService {
     });
   }
 
-  // Admin cập nhật hạng hội viên & điểm thưởng / số dư ví CGV Card
-  async updateMembership(id: string, dto: UpdateUserMembershipDto) {
-    const existing = await this.prisma.user.findUnique({ where: { id } });
-    if (!existing) {
-      throw new NotFoundException({
-        code: 'USER_NOT_FOUND',
-        message: 'Không tìm thấy người dùng',
-      });
-    }
-
-    return this.prisma.user.update({
-      where: { id },
-      data: {
-        ...(dto.membershipTier && { membershipTier: dto.membershipTier }),
-        ...(dto.points !== undefined && { points: dto.points }),
-        ...(dto.cgvCardBalance !== undefined && { cgvCardBalance: dto.cgvCardBalance }),
-        ...(dto.isU22Verified !== undefined && { isU22Verified: dto.isU22Verified }),
-      },
-      select: {
-        id: true,
-        email: true,
-        fullName: true,
-        membershipTier: true,
-        points: true,
-        cgvCardBalance: true,
-        isU22Verified: true,
-        updatedAt: true,
-      },
-    });
-  }
-
-  // Admin xóa người dùng
+  // Admin remove user
   async remove(id: string) {
     const existing = await this.prisma.user.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException({
         code: 'USER_NOT_FOUND',
-        message: 'Không tìm thấy người dùng',
+        message: 'User not found',
       });
     }
 
     await this.prisma.user.delete({ where: { id } });
     return {
       success: true,
-      message: 'Xóa người dùng thành công',
+      message: 'User removed successfully',
     };
   }
 }

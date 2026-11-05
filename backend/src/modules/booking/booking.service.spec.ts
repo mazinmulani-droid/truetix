@@ -7,16 +7,24 @@ describe('BookingService Tests', () => {
   let prismaMock: any;
   let redisMock: any;
   let websocketMock: any;
+  let paymentMock: any;
   let configMock: any;
 
   beforeEach(() => {
     prismaMock = {
       showtime: { findUnique: vi.fn() },
-      showtimeSeat: { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn() },
+      showtimeSeat: {
+        findMany: vi.fn().mockImplementation(({ where }) => {
+          const seatIds = where?.seatId?.in || [];
+          return Promise.resolve(
+            seatIds.map((s: string) => ({ seatId: s, status: 'AVAILABLE', priceModifier: 1.0 })),
+          );
+        }),
+        updateMany: vi.fn(),
+      },
       booking: { create: vi.fn(), update: vi.fn(), findUnique: vi.fn() },
       ticket: { createMany: vi.fn() },
       user: { findUnique: vi.fn(), update: vi.fn() },
-      combo: { findMany: vi.fn().mockResolvedValue([]) },
       $transaction: vi.fn((cb) => cb(prismaMock)),
     };
     redisMock = {
@@ -28,6 +36,10 @@ describe('BookingService Tests', () => {
     websocketMock = {
       broadcastSeatState: vi.fn(),
     };
+    paymentMock = {
+      generatePaymentSignature: vi.fn().mockReturnValue('mock_sig_hex_12345'),
+      verifyPaymentSignature: vi.fn().mockReturnValue(true),
+    };
     configMock = {
       get: vi.fn((key: string, defaultVal: string) => {
         if (key === 'FRONTEND_URL') return 'http://localhost:3000';
@@ -36,7 +48,7 @@ describe('BookingService Tests', () => {
       }),
     };
 
-  service = new BookingService(prismaMock, redisMock, websocketMock, configMock);
+    service = new BookingService(prismaMock, redisMock, websocketMock, paymentMock, configMock);
   });
 
   it('User A successfully holds an available seat with a unique reservation ID', async () => {
@@ -94,7 +106,6 @@ describe('BookingService Tests', () => {
   });
 
   it('Another reservation session cannot release that lock (Lua compare-and-delete check)', async () => {
-    // Lua script returns false because the reservationId does not match the stored lock owner
     redisMock.releaseSeatLock.mockResolvedValue(false);
 
     const res = await service.releaseSeats('usr_bob', {
@@ -131,10 +142,8 @@ describe('BookingService Tests', () => {
   });
 
   it('One user with two separate reservation sessions cannot cross-release or checkout each other', async () => {
-    // Reservation A owns A1
     redisMock.getSeatLockHolder.mockResolvedValue('res_session_A');
 
-    // Attempting to checkout with session B token fails
     await expect(
       service.checkout('usr_alice', {
         reservationId: 'res_session_B',
@@ -146,7 +155,6 @@ describe('BookingService Tests', () => {
   });
 
   it('An expired reservation cannot be checked out', async () => {
-    // Redis returns null because TTL expired or key does not exist
     redisMock.getSeatLockHolder.mockResolvedValue(null);
 
     await expect(
@@ -200,10 +208,8 @@ describe('BookingService Tests', () => {
       userId: 'usr_alice',
       showtime: { movie: {}, cinema: {}, hall: {} },
       tickets: [],
-      combos: [],
     });
 
-    // Bob attempts to fetch Alice's booking
     await expect(service.getBookingById('usr_bob', 'bkg_123')).rejects.toThrow(ForbiddenException);
   });
 });

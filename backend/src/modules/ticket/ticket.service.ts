@@ -2,7 +2,6 @@ import {
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
-  UnauthorizedException,
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -25,9 +24,6 @@ export class TicketService {
             showtime: {
               include: { movie: true, cinema: true, hall: true },
             },
-            combos: {
-              include: { combo: true },
-            },
           },
         },
       },
@@ -46,7 +42,6 @@ export class TicketService {
       startTime: t.booking.showtime.startTime,
       endTime: t.booking.showtime.endTime,
       bookingStatus: t.booking.status,
-      combos: t.booking.combos,
     }));
   }
 
@@ -58,9 +53,6 @@ export class TicketService {
           include: {
             showtime: {
               include: { movie: true, cinema: true, hall: true },
-            },
-            combos: {
-              include: { combo: true },
             },
           },
         },
@@ -78,7 +70,7 @@ export class TicketService {
    * Scanner turnstile validation endpoint (POST /tickets/verify-qr)
    *
    * Key Security & Correctness Controls:
-   * 1. Secret Header Verification: Validates X-Scanner-Key against server config.
+   * 1. Role-Based Access: Protected by JwtAuthGuard + RolesGuard (Role.ADMIN, Role.SCANNER).
    * 2. Timing-Safe Cryptographic Signature: Verifies HMAC-SHA256 signature using crypto.timingSafeEqual.
    * 3. Comprehensive Payload Validation: Verifies that ticketId, bookingId, showtimeId, seatId,
    *    and userId all match the database records exactly.
@@ -87,12 +79,7 @@ export class TicketService {
    * 6. Atomic Conditional Check-in: Uses updateMany with WHERE status = 'UNUSED'
    *    so simultaneous scans at turnstiles cannot both admit the customer.
    */
-  async verifyQrTicket(scannerKey: string, qrToken: string) {
-    const expectedKey = this.configService.get<string>('TURNSTILE_SECRET_KEY', 'turnstile-secret-key-2026');
-    if (!scannerKey || scannerKey !== expectedKey) {
-      throw new UnauthorizedException('Invalid X-Scanner-Key header');
-    }
-
+  async verifyQrTicket(qrToken: string) {
     const hmacSecret = this.configService.get<string>('TICKET_HMAC_SECRET', 'truetix_hmac_qr_secret_key_2026');
     const payload = TicketTokenUtil.verifyToken(qrToken, hmacSecret);
 
@@ -126,7 +113,6 @@ export class TicketService {
           booking: {
             include: {
               showtime: { include: { movie: true, hall: true, cinema: true } },
-              combos: { include: { combo: true } },
               user: { select: { fullName: true, email: true } },
             },
           },
@@ -186,10 +172,6 @@ export class TicketService {
         status: 'CHECKED_IN',
         checkedInAt: new Date(),
         customerName: ticket.booking.user?.fullName,
-        combos: ticket.booking.combos.map((c) => ({
-          name: c.combo.title,
-          quantity: c.quantity,
-        })),
       };
     });
   }

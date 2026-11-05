@@ -1,27 +1,25 @@
-import { PrismaClient, Role, MembershipTier, MovieStatus, AgeRating, ScreenType, SeatType, SeatStatus } from '@prisma/client';
+import { PrismaClient, Role, MovieStatus, AgeRating, ScreenType, SeatType, SeatStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 async function main() {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Refusing to run seed script in production environment!');
+  }
+
+  console.log('⚠️ Running TrueTix development database seeder (resets demo data)...');
   console.log('🧹 Cleaning existing database data...');
 
   // Delete in correct order to respect foreign key constraints
   await prisma.ticket.deleteMany();
-  await prisma.bookingCombo.deleteMany();
   await prisma.booking.deleteMany();
   await prisma.showtimeSeat.deleteMany();
   await prisma.showtime.deleteMany();
-  await prisma.banner.deleteMany();
-  await prisma.combo.deleteMany();
-  await prisma.userVoucher.deleteMany();
-  await prisma.voucher.deleteMany();
-  await prisma.movieReview.deleteMany();
   await prisma.movie.deleteMany();
   await prisma.hall.deleteMany();
   await prisma.cinema.deleteMany();
   await prisma.city.deleteMany();
-  await prisma.cGVCardTransaction.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.user.deleteMany();
 
@@ -36,9 +34,6 @@ async function main() {
       fullName: 'TrueTix System Admin',
       phone: '+91 9876543210',
       role: Role.ADMIN,
-      membershipTier: MembershipTier.VVIP,
-      points: 1000,
-      cgvCardBalance: 50000,
     },
   });
 
@@ -50,9 +45,6 @@ async function main() {
       fullName: 'Alice Johnson',
       phone: '+91 9876543211',
       role: Role.CUSTOMER,
-      membershipTier: MembershipTier.MEMBER,
-      points: 50,
-      cgvCardBalance: 1500,
     },
   });
 
@@ -64,9 +56,6 @@ async function main() {
       fullName: 'Bob Smith',
       phone: '+91 9876543212',
       role: Role.CUSTOMER,
-      membershipTier: MembershipTier.MEMBER,
-      points: 0,
-      cgvCardBalance: 2000,
     },
   });
 
@@ -159,7 +148,7 @@ async function main() {
     },
   });
 
-  // Create ShowtimeSeats in DB
+  // Create ShowtimeSeats in DB (80 seats total)
   const seatsToInsert: any[] = [];
   rows.forEach((rowLetter) => {
     const isVip = ['D', 'E', 'F', 'G'].includes(rowLetter);
@@ -182,43 +171,6 @@ async function main() {
 
   await prisma.showtimeSeat.createMany({
     data: seatsToInsert,
-  });
-
-  console.log('🌱 Seeding Combos & Vouchers...');
-  await prisma.combo.createMany({
-    data: [
-      {
-        id: 'cmb_01',
-        title: 'Single Popcorn Combo',
-        description: '1 Large Butter Popcorn (64oz) + 1 Large Soft Drink (32oz)',
-        price: 250,
-      },
-      {
-        id: 'cmb_02',
-        title: 'Couple Sweetbox Combo',
-        description: '1 Jumbo Caramel Popcorn + 2 Large Soft Drinks',
-        price: 450,
-      },
-      {
-        id: 'cmb_03',
-        title: 'Nachos with Warm Cheese Dip',
-        description: 'Artisan corn tortilla chips served with rich melted cheddar cheese',
-        price: 180,
-      },
-    ],
-  });
-
-  await prisma.voucher.create({
-    data: {
-      id: 'vch_welcome',
-      code: 'WELCOME20',
-      title: 'Welcome 20% Discount',
-      discountType: 'PERCENTAGE',
-      discountValue: 20,
-      minOrderValue: 200,
-      maxDiscountAmount: 100,
-      expiresAt: new Date(Date.now() + 30 * 24 * 3600 * 1000),
-    },
   });
 
   console.log('✅ Demo seed completed successfully!');

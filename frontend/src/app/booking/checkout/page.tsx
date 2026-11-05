@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ChevronLeft, CreditCard, Wallet, Ticket, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, CreditCard, Ticket, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useBookingStore } from '@/store/useBookingStore';
@@ -16,13 +16,11 @@ export default function CheckoutPage() {
     showtimeId,
     selectedSeats,
     reservationId,
-    combos,
-    appliedVoucher,
     getTotalAmount,
     resetBooking,
   } = useBookingStore();
 
-  const { isAuthenticated, accessToken } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
   const [paymentMethod] = useState<'MOCK_GATEWAY'>('MOCK_GATEWAY');
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -46,9 +44,7 @@ export default function CheckoutPage() {
         reservationId: reservationId || undefined,
         showtimeId: showtimeId || 'st_demo_1',
         seatIds: selectedSeats.map((s) => s.id),
-        paymentMethod: paymentMethod === 'CGV_CARD' ? 'CGV_CARD' : 'MOCK_GATEWAY',
-        comboIds: combos.map((c) => ({ comboId: c.comboId, quantity: c.quantity })),
-        voucherCode: appliedVoucher?.code,
+        paymentMethod: 'MOCK_GATEWAY',
       });
 
       if (res && res.data) {
@@ -64,7 +60,6 @@ export default function CheckoutPage() {
         if (paymentUrl) {
           toast.info('Redirecting to secure payment sandbox...');
           resetBooking();
-          // Extract pathname and query from full URL or relative URL
           try {
             const urlObj = new URL(paymentUrl);
             router.push(urlObj.pathname + urlObj.search);
@@ -138,9 +133,7 @@ export default function CheckoutPage() {
 
               <CardContent className="space-y-4 pt-6">
                 {/* Payment Option: Mock Payment Gateway */}
-                <div
-                  className="p-4 border rounded-xl flex items-center justify-between border-primary bg-primary/10 shadow-[0_0_15px_rgba(225,29,72,0.2)]"
-                >
+                <div className="p-4 border rounded-xl flex items-center justify-between border-primary bg-primary/10 shadow-[0_0_15px_rgba(225,29,72,0.2)]">
                   <div className="flex items-center gap-4">
                     <div className="bg-blue-500/20 p-3 rounded-lg text-blue-400 border border-blue-500/30">
                       <CreditCard className="w-6 h-6" />
@@ -188,46 +181,13 @@ export default function CheckoutPage() {
                     </div>
                     <p className="font-black text-white">{seatsTotal.toLocaleString('en-IN')} INR</p>
                   </div>
-
-                  {/* Combos */}
-                  {combos.length > 0 && (
-                    <div className="pt-4 border-t border-white/10 border-dashed">
-                      <p className="font-bold text-white mb-2 text-sm">
-                        Food & Drinks ({combos.reduce((a, b) => a + b.quantity, 0)})
-                      </p>
-                      <div className="space-y-2">
-                        {combos.map((combo) => (
-                          <div key={combo.comboId} className="flex justify-between text-xs">
-                            <span className="text-gray-300">
-                              {combo.quantity}x {combo.name}
-                            </span>
-                            <span className="font-mono text-white">
-                              {(combo.price * combo.quantity).toLocaleString('en-IN')} INR
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Discount */}
-                  {appliedVoucher && (
-                    <div className="pt-4 border-t border-white/10 border-dashed flex justify-between items-center text-primary">
-                      <span className="font-bold text-xs flex items-center gap-1.5">
-                        <Ticket className="w-4 h-4" /> Promo Code: {appliedVoucher.code}
-                      </span>
-                      <span className="font-black text-sm">
-                        -{appliedVoucher.discountAmount.toLocaleString('en-IN')} INR
-                      </span>
-                    </div>
-                  )}
                 </div>
 
                 {/* Total */}
                 <div className="p-6 bg-primary/10 border-t border-primary/20 flex justify-between items-center">
                   <span className="font-black text-white text-lg uppercase tracking-wider">Total</span>
                   <span className="font-black text-3xl text-primary">
-                    {getTotalAmount().toLocaleString('en-IN')} INR
+                    {seatsTotal.toLocaleString('en-IN')} INR
                   </span>
                 </div>
 

@@ -1,39 +1,36 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { BannerStatus, MovieStatus } from '@prisma/client';
+import { MovieStatus } from '@prisma/client';
 
 @Injectable()
 export class HomeService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  // Dynamic Homepage Aggregator API: Tự động tổng hợp Banners, Phim đang chiếu, Phim sắp chiếu và Cụm rạp theo cityId do Admin tạo
+  /**
+   * Homepage data aggregator: returns active movies, cities, and cinemas
+   */
   async getHomePageData(cityId?: string) {
-    const [banners, nowShowingMovies, comingSoonMovies, cities, featuredCinemas] = await Promise.all([
-      // Active promotional banners for slider
-      this.prisma.banner.findMany({
-        where: { status: BannerStatus.ACTIVE },
-        orderBy: { displayOrder: 'asc' },
-      }),
-      // Phim đang chiếu
+    const [nowShowingMovies, comingSoonMovies, cities, featuredCinemas] = await Promise.all([
+      // Movies currently playing
       this.prisma.movie.findMany({
         where: { status: MovieStatus.NOW_SHOWING },
         orderBy: { releaseDate: 'desc' },
         take: 10,
       }),
-      // Phim sắp chiếu
+      // Upcoming movies
       this.prisma.movie.findMany({
         where: { status: MovieStatus.COMING_SOON },
         orderBy: { releaseDate: 'asc' },
         take: 10,
       }),
-      // Danh sách tất cả các địa điểm thành phố
+      // Available cities
       this.prisma.city.findMany({
         orderBy: { displayOrder: 'asc' },
         include: {
           _count: { select: { cinemas: true } },
         },
       }),
-      // Cụm rạp nổi bật lọc theo cityId (nếu chọn)
+      // Featured cinemas filtered optionally by city
       this.prisma.cinema.findMany({
         where: {
           ...(cityId && { cityId }),
@@ -47,7 +44,7 @@ export class HomeService {
     ]);
 
     return {
-      banners,
+      banners: [],
       movies: {
         nowShowing: nowShowingMovies,
         comingSoon: comingSoonMovies,

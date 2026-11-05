@@ -21,7 +21,6 @@ describe('TicketService Tests', () => {
     };
     configMock = {
       get: vi.fn((key: string, defaultVal: string) => {
-        if (key === 'TURNSTILE_SECRET_KEY') return 'turnstile-secret-key-2026';
         if (key === 'TICKET_HMAC_SECRET') return secret;
         return defaultVal;
       }),
@@ -43,7 +42,7 @@ describe('TicketService Tests', () => {
     );
 
     await expect(
-      service.verifyQrTicket('turnstile-secret-key-2026', token),
+      service.verifyQrTicket(token),
     ).rejects.toThrow(UnprocessableEntityException);
   });
 
@@ -69,12 +68,11 @@ describe('TicketService Tests', () => {
         showtimeId: 'st_456',
         status: 'PAID',
         showtime: { movie: {}, cinema: {}, hall: {} },
-        combos: [],
       },
     });
 
     await expect(
-      service.verifyQrTicket('turnstile-secret-key-2026', token),
+      service.verifyQrTicket(token),
     ).rejects.toThrow(UnprocessableEntityException);
   });
 
@@ -101,12 +99,11 @@ describe('TicketService Tests', () => {
         showtimeId: 'st_456',
         status: 'PENDING_PAYMENT',
         showtime: { movie: {}, cinema: {}, hall: {} },
-        combos: [],
       },
     });
 
     await expect(
-      service.verifyQrTicket('turnstile-secret-key-2026', token),
+      service.verifyQrTicket(token),
     ).rejects.toThrow(UnprocessableEntityException);
   });
 
@@ -125,7 +122,7 @@ describe('TicketService Tests', () => {
     );
 
     await expect(
-      service.verifyQrTicket('turnstile-secret-key-2026', token),
+      service.verifyQrTicket(token),
     ).rejects.toThrow(UnprocessableEntityException);
   });
 
@@ -151,7 +148,6 @@ describe('TicketService Tests', () => {
         showtimeId: 'st_456',
         status: 'PAID',
         showtime: { movie: {}, cinema: {}, hall: {} },
-        combos: [],
       },
     });
 
@@ -159,7 +155,7 @@ describe('TicketService Tests', () => {
     prismaMock.ticket.updateMany.mockResolvedValue({ count: 0 });
 
     await expect(
-      service.verifyQrTicket('turnstile-secret-key-2026', token),
+      service.verifyQrTicket(token),
     ).rejects.toThrow(ConflictException);
   });
 
@@ -185,7 +181,6 @@ describe('TicketService Tests', () => {
         showtimeId: 'st_456',
         status: 'PAID',
         showtime: { movie: { title: 'Test Film' }, cinema: { name: 'Cinema 1' }, hall: { name: 'H1' } },
-        combos: [],
       },
     });
 
@@ -194,8 +189,8 @@ describe('TicketService Tests', () => {
       .mockResolvedValueOnce({ count: 1 })
       .mockResolvedValueOnce({ count: 0 });
 
-    const req1 = service.verifyQrTicket('turnstile-secret-key-2026', token);
-    const req2 = service.verifyQrTicket('turnstile-secret-key-2026', token);
+    const req1 = service.verifyQrTicket(token);
+    const req2 = service.verifyQrTicket(token);
 
     const [res1, res2] = await Promise.allSettled([req1, req2]);
 

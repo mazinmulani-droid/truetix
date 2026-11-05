@@ -42,9 +42,6 @@ export const Header = () => {
             <Link href="/cinemas" className="transition-colors hover:text-primary">
               Cinemas
             </Link>
-            <Link href="/promotions" className="transition-colors hover:text-primary">
-              Offers
-            </Link>
           </nav>
         </div>
 
@@ -145,13 +142,6 @@ export const Header = () => {
                 className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-muted font-medium text-sm"
               >
                 <MapPin className="w-4 h-4 text-primary" /> Cinemas
-              </Link>
-              <Link
-                href="/promotions"
-                onClick={closeMobileMenu}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-muted font-medium text-sm"
-              >
-                <Sparkles className="w-4 h-4 text-primary" /> Offers
               </Link>
 
               {isAuthenticated && (

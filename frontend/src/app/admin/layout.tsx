@@ -21,8 +21,6 @@ const navLinks = [
 
 const secondaryLinks = [
   { href: '/admin/cities', icon: Building2, label: 'Cities & Regions' },
-  { href: '/admin/combos', icon: Popcorn, label: 'Food & Drinks' },
-  { href: '/admin/banners', icon: ImageIcon, label: 'Manage Banners' },
   { href: '/admin/settings', icon: Settings, label: 'Settings' },
 ];
 

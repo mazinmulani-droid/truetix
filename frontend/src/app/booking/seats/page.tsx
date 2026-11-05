@@ -241,7 +241,7 @@ function SeatsContent() {
         const { reservationId, expiresAt } = res.data;
         setReservation(reservationId, expiresAt);
         toast.success(`Reserved ${seatIds.length} seat(s) for 10 minutes.`);
-        router.push('/booking/fb');
+        router.push(`/booking/checkout?showtimeId=${showtimeId}`);
         return;
       }
     } catch (err: any) {
@@ -423,7 +423,7 @@ function SeatsContent() {
               disabled={selectedSeats.length === 0}
               className="w-full sm:w-auto text-base md:text-lg font-bold px-8 shadow-lg shadow-primary/40 bg-primary hover:bg-primary/90 text-white rounded-full"
             >
-              Continue to Combos <ChevronRight className="ml-2 w-5 h-5" />
+              Proceed to Checkout <ChevronRight className="ml-2 w-5 h-5" />
             </Button>
           </div>
         </div>

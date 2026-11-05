@@ -9,6 +9,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
+import { PaymentService } from '../payment/payment.service';
 import { HoldSeatDto } from './dto/hold-seat.dto';
 import { CheckoutBookingDto } from './dto/checkout-booking.dto';
 import { ConfigService } from '@nestjs/config';
@@ -23,6 +24,7 @@ export class BookingService {
     private readonly prisma: PrismaService,
     private readonly redisService: RedisService,
     private readonly websocketGateway: WebsocketGateway,
+    private readonly paymentService: PaymentService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -32,8 +34,10 @@ export class BookingService {
    * Key Engineering Mechanisms:
    * 1. Unique Reservation ID: Generates a cryptographically random session token (res_<uuid>)
    *    so different tabs/sessions belonging to the same user have distinct ownership.
-   * 2. Atomic Acquisition: Uses SET lock:seat:{showtimeId}:{seatId} {reservationId} NX EX 600.
-   * 3. Multi-Seat Atomic Rollback: If any seat in a requested batch fails to acquire,
+   * 2. Duplicate Detection: Rejects duplicate seat IDs in the same request.
+   * 3. Database Pre-Validation: Verifies that all seats exist and are neither SOLD nor BLOCKED.
+   * 4. Atomic Acquisition: Uses SET lock:seat:{showtimeId}:{seatId} {reservationId} NX EX 600.
+   * 5. Multi-Seat Atomic Rollback: If any seat in a requested batch fails to acquire,
    *    all previously acquired seats are rolled back via atomic Lua compare-and-delete.
    */
   async holdSeats(userId: string, dto: HoldSeatDto) {
@@ -42,6 +46,11 @@ export class BookingService {
 
     if (!showtimeId || seatIds.length === 0) {
       throw new BadRequestException('Please provide showtimeId and a list of seatIds');
+    }
+
+    // Reject duplicate seat IDs in the batch
+    if (new Set(seatIds).size !== seatIds.length) {
+      throw new BadRequestException('Duplicate seat IDs provided');
     }
 
     const showtime = await this.prisma.showtime.findUnique({ where: { id: showtimeId } });
@@ -53,13 +62,17 @@ export class BookingService {
       throw new BadRequestException('This showtime has already started or ended. Booking is unavailable.');
     }
 
-    // Verify seat status from PostgreSQL database before attempting Redis lock
+    // Verify seat existence and status from PostgreSQL database before attempting Redis lock
     const existingSeats = await this.prisma.showtimeSeat.findMany({
       where: {
         showtimeId,
         seatId: { in: seatIds },
       },
     });
+
+    if (existingSeats.length !== seatIds.length) {
+      throw new NotFoundException('Some selected seats do not exist in this showtime');
+    }
 
     for (const seat of existingSeats) {
       if (seat.status === 'SOLD') {
@@ -117,12 +130,16 @@ export class BookingService {
   /**
    * Releases temporarily held seats.
    * Uses an atomic Lua compare-and-delete script in Redis so that locks are ONLY deleted
-   * if the stored token matches the provided reservationId (or fallback userId for legacy compatibility).
+   * if the stored token matches the provided reservationId (or fallback userId).
    */
   async releaseSeats(userId: string, dto: HoldSeatDto) {
     const { showtimeId, seatIds = [], reservationId } = dto;
     const releasedSeats: string[] = [];
     const ownerToken = reservationId || userId;
+
+    if (!ownerToken) {
+      throw new BadRequestException('reservationId is required to release seats');
+    }
 
     if (showtimeId && seatIds.length > 0) {
       for (const seatId of seatIds) {
@@ -144,9 +161,10 @@ export class BookingService {
    *    is actively held by the specific reservationId. Rejects if expired or belonging to another session.
    * 2. PostgreSQL ACID Transaction: Verifies showtime validity, computes order total,
    *    creates Booking, and issues tamper-proof digital tickets with HMAC-SHA256 signatures.
+   * 3. HMAC-Signed Payment URL: Generates signature via PaymentService so the mock sandbox can securely verify it.
    */
   async checkout(userId: string, dto: CheckoutBookingDto) {
-    const { showtimeId, seatIds, reservationId, comboIds } = dto;
+    const { showtimeId, seatIds, reservationId } = dto;
 
     if (!showtimeId || !seatIds || seatIds.length === 0) {
       throw new BadRequestException('showtimeId and seatIds are required');
@@ -159,7 +177,6 @@ export class BookingService {
     // 1. Verify reservation ownership and expiry in Redis
     for (const seatId of seatIds) {
       const lockHolder = await this.redisService.getSeatLockHolder(showtimeId, seatId);
-      // Ensure the lock is held by the specific reservationId (or userId fallback)
       if (!lockHolder || (lockHolder !== reservationId && lockHolder !== userId)) {
         throw new ConflictException({
           code: 'SEAT_LOCK_EXPIRED_OR_NOT_OWNED',
@@ -207,61 +224,30 @@ export class BookingService {
         ticketTotal += price;
       });
 
-      // 5. Calculate optional F&B Combos total
-      let comboTotal = 0;
-      const comboRecordsToInsert: { comboId: string; quantity: number; price: number }[] = [];
+      const finalAmount = ticketTotal;
 
-      if (comboIds && comboIds.length > 0) {
-        const comboDbList = await tx.combo.findMany({
-          where: { id: { in: comboIds.map((c) => c.comboId) }, status: 'ACTIVE' },
-        });
-
-        for (const item of comboIds) {
-          const combo = comboDbList.find((c) => c.id === item.comboId);
-          if (combo) {
-            comboTotal += combo.price * item.quantity;
-            comboRecordsToInsert.push({ comboId: combo.id, quantity: item.quantity, price: combo.price });
-          }
-        }
-      }
-
-      const finalAmount = ticketTotal + comboTotal;
-
-      // 6. Generate Mock Payment Sandbox URL
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
-
-      // 7. Create Booking record in PostgreSQL with status PENDING_PAYMENT
+      // 5. Create Booking record in PostgreSQL with status PENDING_PAYMENT
       const booking = await tx.booking.create({
         data: {
           userId,
           showtimeId,
           totalAmount: finalAmount,
-          discountAmount: 0,
           status: 'PENDING_PAYMENT',
           paymentMethod: 'MOCK_GATEWAY',
         },
       });
 
-      // Formulate mock payment redirect URL with booking ID
-      const paymentUrl = `${frontendUrl}/payment/mock-gateway?bookingId=${booking.id}&amount=${finalAmount}`;
+      // 6. Generate Mock Payment Sandbox URL with valid HMAC signature
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
+      const signature = this.paymentService.generatePaymentSignature(booking.id, finalAmount);
+      const paymentUrl = `${frontendUrl}/payment/mock-gateway?bookingId=${booking.id}&amount=${finalAmount}&signature=${signature}`;
+
       await tx.booking.update({
         where: { id: booking.id },
         data: { paymentUrl },
       });
 
-      // 8. Insert BookingCombo records if selected
-      if (comboRecordsToInsert.length > 0) {
-        await tx.bookingCombo.createMany({
-          data: comboRecordsToInsert.map((c) => ({
-            bookingId: booking.id,
-            comboId: c.comboId,
-            quantity: c.quantity,
-            price: c.price,
-          })),
-        });
-      }
-
-      // 9. Generate electronic tickets with HMAC-SHA256 signatures
+      // 7. Generate electronic tickets with HMAC-SHA256 signatures
       const hmacSecret = this.configService.get<string>('TICKET_HMAC_SECRET', 'truetix_hmac_qr_secret_key_2026');
       const ticketRecordsToInsert = seatIds.map((seatId) => {
         const ticketId = crypto.randomUUID();
@@ -312,7 +298,6 @@ export class BookingService {
           include: { movie: true, cinema: true, hall: true },
         },
         tickets: true,
-        combos: { include: { combo: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -329,7 +314,6 @@ export class BookingService {
           include: { movie: true, cinema: true, hall: true },
         },
         tickets: true,
-        combos: { include: { combo: true } },
       },
     });
 

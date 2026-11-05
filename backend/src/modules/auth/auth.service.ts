@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -6,14 +6,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh.dto';
-import { OAuthLoginDto } from './dto/oauth.dto';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private prisma: PrismaService,
-    private jwtService: JwtService,
-    private configService: ConfigService,
+    private readonly prisma: PrismaService,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
   // Register new user
@@ -52,7 +51,7 @@ export class AuthService {
     };
   }
 
-  // Login
+  // Login with email and password
   async login(loginDto: LoginDto) {
     const user = await this.prisma.user.findUnique({
       where: { email: loginDto.email },
@@ -107,17 +106,6 @@ export class AuthService {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
     };
-  }
-
-  /**
-   * OAuth login endpoint
-   * Explicitly disabled to maintain security integrity because external provider
-   * ID token signature validation is not configured in this environment.
-   */
-  async oauthLogin(dto: OAuthLoginDto) {
-    throw new BadRequestException(
-      'OAuth 2.0 provider token verification is not configured in this environment. Please authenticate using email and password.',
-    );
   }
 
   // Generate Access Token and Refresh Token

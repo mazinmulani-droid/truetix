@@ -40,7 +40,6 @@ export default function MyTicketsPage() {
           startTime: t.startTime ? new Date(t.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '19:30',
           endTime: t.endTime ? new Date(t.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '21:30',
           showDate: t.startTime,
-          combos: t.combos,
         }));
 
         setTickets(formattedTickets);

@@ -1,10 +1,9 @@
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { buttonVariants } from '@/components/ui/button';
-import { BannerSlider } from '@/components/home/banner-slider';
 import { HomeMovieShowcase } from '@/components/home/movie-showcase';
 import { API_URL } from '@/lib/constants';
-import { Play, Ticket, Clock, Film, Sparkles, MapPin } from 'lucide-react';
+import { Ticket, Sparkles, MapPin } from 'lucide-react';
 
 async function getHomeData() {
   try {
@@ -15,20 +14,6 @@ async function getHomeData() {
   } catch (error) {
     console.warn('Backend API offline, loading default showcase catalog.');
     return {
-      banners: [
-        {
-          id: 'b1',
-          title: 'TrueTix IMAX Experience',
-          imageUrl: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=2070&auto=format&fit=crop',
-          linkUrl: '/movies'
-        },
-        {
-          id: 'b2',
-          title: 'Avatar: The Way of Water',
-          imageUrl: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=2070&auto=format&fit=crop',
-          linkUrl: '/movies'
-        }
-      ],
       movies: {
         nowShowing: [
           {
@@ -39,7 +24,7 @@ async function getHomeData() {
             releaseDate: '2026-06-15',
             ageRating: 'T13',
             languageType: 'SUB',
-            posterUrl: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop'
+            posterUrl: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop',
           },
           {
             id: 'mov_2',
@@ -49,7 +34,7 @@ async function getHomeData() {
             releaseDate: '2026-07-20',
             ageRating: 'T18',
             languageType: 'SUB',
-            posterUrl: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=600&auto=format&fit=crop'
+            posterUrl: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=600&auto=format&fit=crop',
           },
           {
             id: 'mov_3',
@@ -59,7 +44,7 @@ async function getHomeData() {
             releaseDate: '2026-09-10',
             ageRating: 'T16',
             languageType: 'SUB',
-            posterUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop'
+            posterUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop',
           },
           {
             id: 'mov_4',
@@ -69,8 +54,8 @@ async function getHomeData() {
             releaseDate: '2026-07-26',
             ageRating: 'T18',
             languageType: 'SUB',
-            posterUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=600&auto=format&fit=crop'
-          }
+            posterUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=600&auto=format&fit=crop',
+          },
         ],
         comingSoon: [
           {
@@ -81,7 +66,7 @@ async function getHomeData() {
             releaseDate: '2026-11-22',
             ageRating: 'T18',
             languageType: 'SUB',
-            posterUrl: 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?q=80&w=600&auto=format&fit=crop'
+            posterUrl: 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?q=80&w=600&auto=format&fit=crop',
           },
           {
             id: 'mov_6',
@@ -91,22 +76,17 @@ async function getHomeData() {
             releaseDate: '2026-12-05',
             ageRating: 'T13',
             languageType: 'SUB',
-            posterUrl: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?q=80&w=600&auto=format&fit=crop'
-          }
-        ]
+            posterUrl: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?q=80&w=600&auto=format&fit=crop',
+          },
+        ],
       },
       featuredCinemas: [
         {
-          id: 'cin_1',
-          name: 'TrueTix Leicester Square',
-          address: 'Leicester Square, London WC2H 7NA'
+          id: 'cin_01',
+          name: 'TrueTix Phoenix Mall Cinema',
+          address: 'Phoenix Palladium, Lower Parel, Mumbai',
         },
-        {
-          id: 'cin_2',
-          name: 'TrueTix Manchester Central',
-          address: 'Deansgate, Manchester M3 4EN'
-        }
-      ]
+      ],
     };
   }
 }
@@ -125,14 +105,44 @@ export default async function Home() {
 
   const nowShowing = data.movies?.nowShowing || [];
   const comingSoon = data.movies?.comingSoon || [];
-  const banners = data.banners || [];
   const featuredCinemas = data.featuredCinemas || [];
 
   return (
     <div className="min-h-screen pb-20 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]">
-      {/* Hero Banner Section */}
-      <section className="relative w-full h-[500px] md:h-[700px] bg-black overflow-hidden border-b border-white/10">
-        <BannerSlider banners={banners} />
+      {/* Hero Section */}
+      <section className="relative w-full py-20 bg-gradient-to-b from-black via-zinc-950 to-background border-b border-white/10 overflow-hidden">
+        <div className="container mx-auto px-4 text-center max-w-4xl space-y-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-wider">
+            <Sparkles className="w-3.5 h-3.5" /> High-Concurrency Real-Time Ticketing
+          </div>
+          <h1 className="text-4xl sm:text-6xl font-black uppercase tracking-tight text-white leading-tight">
+            Seamless Movie Booking with Instant Seat Locking
+          </h1>
+          <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+            Select your favorite film, choose your seats in real-time, and experience zero double-booking with atomic Redis reservation locking and digital HMAC QR tickets.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
+            <Link
+              href="/movies"
+              className={buttonVariants({
+                size: 'lg',
+                className: 'rounded-full font-bold px-8 shadow-lg shadow-primary/30',
+              })}
+            >
+              <Ticket className="w-5 h-5 mr-2" /> Browse Movies
+            </Link>
+            <Link
+              href="/cinemas"
+              className={buttonVariants({
+                variant: 'outline',
+                size: 'lg',
+                className: 'rounded-full font-bold px-8 border-white/20 hover:bg-white/10',
+              })}
+            >
+              <MapPin className="w-5 h-5 mr-2" /> Find Theaters
+            </Link>
+          </div>
+        </div>
       </section>
 
       {/* Dynamic Persistent Movies Showcase (Now Showing & Coming Soon) */}
@@ -141,13 +151,15 @@ export default async function Home() {
         initialComingSoon={comingSoon}
       />
 
-      {/* Featured Cinemas Section (Optional) */}
+      {/* Featured Cinemas Section */}
       {featuredCinemas.length > 0 && (
         <section className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-between mb-10">
             <div className="flex items-center gap-4">
               <div className="w-1.5 h-8 bg-amber-500 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.8)]" />
-              <h2 className="text-4xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-600 py-2 leading-relaxed">Featured Cinemas</h2>
+              <h2 className="text-4xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-600 py-2 leading-relaxed">
+                Featured Cinemas
+              </h2>
             </div>
             <Link href="/cinemas" className="text-sm font-bold uppercase tracking-widest text-amber-500 hover:text-white transition-colors flex items-center gap-2 group">
               All Cinemas
