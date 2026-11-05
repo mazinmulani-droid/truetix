@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PaymentService } from './payment.service';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 
-describe('PaymentService Scenarios', () => {
+describe('PaymentService Tests', () => {
   let service: PaymentService;
   let prismaMock: any;
   let configMock: any;
@@ -17,12 +17,6 @@ describe('PaymentService Scenarios', () => {
         updateMany: vi.fn(),
       },
       showtimeSeat: {
-        updateMany: vi.fn(),
-      },
-      user: {
-        update: vi.fn(),
-      },
-      userVoucher: {
         updateMany: vi.fn(),
       },
       $transaction: vi.fn(async (cb) => cb(prismaMock)),
@@ -47,8 +41,7 @@ describe('PaymentService Scenarios', () => {
     service = new PaymentService(prismaMock, configMock, websocketMock, redisMock);
   });
 
-  // Scenario 8: A successful payment marks the booking paid
-  it('Scenario 8: A successful payment marks the booking paid and seats as SOLD', async () => {
+  it('A successful payment marks the booking paid and seats as SOLD', async () => {
     const bookingId = 'bkg_1001';
     const amount = 500;
     const signature = service.generatePaymentSignature(bookingId, amount);
@@ -59,13 +52,11 @@ describe('PaymentService Scenarios', () => {
       totalAmount: amount,
       showtimeId: 'st_123',
       userId: 'usr_alice',
-      cgvPointsEarned: 10,
-      cgvPointsUsed: 0,
       tickets: [{ seatId: 'A1' }, { seatId: 'A2' }],
     });
 
-    // Atomic update updates 1 record
     prismaMock.booking.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.showtimeSeat.updateMany.mockResolvedValue({ count: 2 });
 
     const result = await service.processSuccessfulPayment(bookingId, amount, signature);
 
@@ -74,23 +65,21 @@ describe('PaymentService Scenarios', () => {
       where: { id: bookingId, status: 'PENDING_PAYMENT' },
       data: { status: 'PAID', paymentMethod: 'MOCK_GATEWAY' },
     });
-    // Check that seats were transitioned to SOLD
     expect(prismaMock.showtimeSeat.updateMany).toHaveBeenCalledWith({
-      where: { showtimeId: 'st_123', seatId: { in: ['A1', 'A2'] } },
+      where: { showtimeId: 'st_123', seatId: { in: ['A1', 'A2'] }, status: { not: 'SOLD' } },
       data: { status: 'SOLD' },
     });
-    // Redis lock force-released
+    // Post-commit Redis lock cleanup
     expect(redisMock.forceReleaseSeatLock).toHaveBeenCalledWith('st_123', 'A1');
     expect(redisMock.forceReleaseSeatLock).toHaveBeenCalledWith('st_123', 'A2');
   });
 
-  // Scenario 9: Repeated payment callbacks do not create duplicates (Idempotency)
-  it('Scenario 9: Repeated payment callbacks do not create duplicates or increment points twice', async () => {
+  it('Repeated payment callbacks return idempotent cached success without re-executing transitions', async () => {
     const bookingId = 'bkg_1001';
     const amount = 500;
     const signature = service.generatePaymentSignature(bookingId, amount);
 
-    // Initial state: booking is ALREADY PAID
+    // Initial state: booking is already PAID
     prismaMock.booking.findUnique.mockResolvedValue({
       id: bookingId,
       status: 'PAID',
@@ -102,17 +91,38 @@ describe('PaymentService Scenarios', () => {
 
     const result = await service.processSuccessfulPayment(bookingId, amount, signature);
 
-    // Safely returns success with idempotent message
     expect(result.success).toBe(true);
     expect(result.message).toContain('idempotent');
 
-    // Crucial: $transaction was NOT executed again, no double point updates or seat updates!
+    // Database transaction was NOT executed again
     expect(prismaMock.booking.updateMany).not.toHaveBeenCalled();
-    expect(prismaMock.user.update).not.toHaveBeenCalled();
+    expect(prismaMock.showtimeSeat.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('Rejects payment callback when signature is missing', async () => {
+    const bookingId = 'bkg_1001';
+    await expect(service.processSuccessfulPayment(bookingId, 500, '')).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('Rejects payment callback when signature is forged or invalid', async () => {
+    const bookingId = 'bkg_1001';
+    prismaMock.booking.findUnique.mockResolvedValue({
+      id: bookingId,
+      status: 'PENDING_PAYMENT',
+      totalAmount: 500,
+      tickets: [],
+    });
+
+    await expect(
+      service.processSuccessfulPayment(bookingId, 500, 'forged_fake_signature_12345678'),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('Rejects payment callback when amount does not match expected booking total', async () => {
     const bookingId = 'bkg_1001';
+    const correctSignature = service.generatePaymentSignature(bookingId, 1);
 
     prismaMock.booking.findUnique.mockResolvedValue({
       id: bookingId,
@@ -122,8 +132,31 @@ describe('PaymentService Scenarios', () => {
     });
 
     // Attacker sends amount 1 instead of 500
-    await expect(service.processSuccessfulPayment(bookingId, 1)).rejects.toThrow(
+    await expect(service.processSuccessfulPayment(bookingId, 1, correctSignature)).rejects.toThrow(
       BadRequestException,
+    );
+  });
+
+  it('Payment seat update count mismatch triggers transaction rollback', async () => {
+    const bookingId = 'bkg_1001';
+    const amount = 500;
+    const signature = service.generatePaymentSignature(bookingId, amount);
+
+    prismaMock.booking.findUnique.mockResolvedValue({
+      id: bookingId,
+      status: 'PENDING_PAYMENT',
+      totalAmount: amount,
+      showtimeId: 'st_123',
+      userId: 'usr_alice',
+      tickets: [{ seatId: 'A1' }, { seatId: 'A2' }],
+    });
+
+    prismaMock.booking.updateMany.mockResolvedValue({ count: 1 });
+    // Only 1 seat updated when 2 expected (mismatch)
+    prismaMock.showtimeSeat.updateMany.mockResolvedValue({ count: 1 });
+
+    await expect(service.processSuccessfulPayment(bookingId, amount, signature)).rejects.toThrow(
+      ConflictException,
     );
   });
 });

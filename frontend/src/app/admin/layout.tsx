@@ -12,20 +12,18 @@ const oswald = Oswald({ subsets: ['latin', 'vietnamese'] });
 
 const navLinks = [
   { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/admin/tickets/scan', icon: QrCode, label: 'Turnstile Scanner (QR)' },
   { href: '/admin/movies', icon: Film, label: 'Manage Films' },
-  { href: '/admin/banners', icon: ImageIcon, label: 'Manage Banners' },
   { href: '/admin/cinemas', icon: MapPin, label: 'Manage Cinemas' },
   { href: '/admin/showtimes', icon: CalendarRange, label: 'Manage Showtimes' },
   { href: '/admin/users', icon: Users, label: 'Manage Users' },
-  { href: '/admin/settings', icon: Settings, label: 'Settings' },
 ];
 
 const secondaryLinks = [
   { href: '/admin/cities', icon: Building2, label: 'Cities & Regions' },
   { href: '/admin/combos', icon: Popcorn, label: 'Food & Drinks' },
-  { href: '/admin/vouchers', icon: Ticket, label: 'Vouchers & Offers' },
-  { href: '/admin/payments', icon: Wallet, label: 'UPI Approvals' },
-  { href: '/admin/tickets/scan', icon: QrCode, label: 'Ticket Scanner (QR)' },
+  { href: '/admin/banners', icon: ImageIcon, label: 'Manage Banners' },
+  { href: '/admin/settings', icon: Settings, label: 'Settings' },
 ];
 
 export default function AdminLayout({

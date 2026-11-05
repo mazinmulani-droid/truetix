@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { BookingService } from './booking.service';
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 
-describe('BookingService Scenarios', () => {
+describe('BookingService Tests', () => {
   let service: BookingService;
   let prismaMock: any;
   let redisMock: any;
@@ -17,7 +17,6 @@ describe('BookingService Scenarios', () => {
       ticket: { createMany: vi.fn() },
       user: { findUnique: vi.fn(), update: vi.fn() },
       combo: { findMany: vi.fn().mockResolvedValue([]) },
-      voucher: { findUnique: vi.fn() },
       $transaction: vi.fn((cb) => cb(prismaMock)),
     };
     redisMock = {
@@ -30,14 +29,17 @@ describe('BookingService Scenarios', () => {
       broadcastSeatState: vi.fn(),
     };
     configMock = {
-      get: vi.fn().mockReturnValue('mock-secret'),
+      get: vi.fn((key: string, defaultVal: string) => {
+        if (key === 'FRONTEND_URL') return 'http://localhost:3000';
+        if (key === 'TICKET_HMAC_SECRET') return 'truetix_hmac_qr_secret_key_2026';
+        return defaultVal;
+      }),
     };
 
-    service = new BookingService(prismaMock, redisMock, websocketMock, configMock);
+  service = new BookingService(prismaMock, redisMock, websocketMock, configMock);
   });
 
-  // Scenario 1: User A successfully holds an available seat
-  it('Scenario 1: User A successfully holds an available seat', async () => {
+  it('User A successfully holds an available seat with a unique reservation ID', async () => {
     prismaMock.showtime.findUnique.mockResolvedValue({
       id: 'st_456',
       startTime: new Date(Date.now() + 3600 * 1000),
@@ -51,7 +53,8 @@ describe('BookingService Scenarios', () => {
 
     expect(res.heldSeats).toEqual(['A1']);
     expect(res.ttlSeconds).toBe(600);
-    expect(redisMock.acquireSeatLock).toHaveBeenCalledWith('st_456', 'A1', 'usr_alice', 600);
+    expect(res.reservationId).toMatch(/^res_/);
+    expect(redisMock.acquireSeatLock).toHaveBeenCalledWith('st_456', 'A1', res.reservationId, 600);
     expect(websocketMock.broadcastSeatState).toHaveBeenCalledWith(
       'st_456',
       'A1',
@@ -61,13 +64,11 @@ describe('BookingService Scenarios', () => {
     );
   });
 
-  // Scenario 2: User B cannot hold the same seat
-  it('Scenario 2: User B cannot hold the same seat when already held', async () => {
+  it('User B cannot hold the same seat when already held', async () => {
     prismaMock.showtime.findUnique.mockResolvedValue({
       id: 'st_456',
       startTime: new Date(Date.now() + 3600 * 1000),
     });
-    // Seat A1 lock acquisition fails because User A holds it
     redisMock.acquireSeatLock.mockResolvedValue(false);
 
     await expect(
@@ -78,38 +79,35 @@ describe('BookingService Scenarios', () => {
     ).rejects.toThrow(ConflictException);
   });
 
-  // Scenario 3: The lock owner can release the seat
-  it('Scenario 3: The lock owner can release the seat', async () => {
-    // Lua script returns true when ownerToken matches
+  it('The reservation owner can release the seat using their reservation token', async () => {
     redisMock.releaseSeatLock.mockResolvedValue(true);
 
     const res = await service.releaseSeats('usr_alice', {
       showtimeId: 'st_456',
       seatIds: ['A1'],
+      reservationId: 'res_owner_123',
     });
 
     expect(res.releasedSeats).toEqual(['A1']);
-    expect(redisMock.releaseSeatLock).toHaveBeenCalledWith('st_456', 'A1', 'usr_alice');
+    expect(redisMock.releaseSeatLock).toHaveBeenCalledWith('st_456', 'A1', 'res_owner_123');
     expect(websocketMock.broadcastSeatState).toHaveBeenCalledWith('st_456', 'A1', 'AVAILABLE', null, null);
   });
 
-  // Scenario 4: Another user cannot release that lock
-  it('Scenario 4: Another user cannot release that lock', async () => {
-    // Lua script returns false because Bob does not match Alice's ownerToken in Redis
+  it('Another reservation session cannot release that lock (Lua compare-and-delete check)', async () => {
+    // Lua script returns false because the reservationId does not match the stored lock owner
     redisMock.releaseSeatLock.mockResolvedValue(false);
 
     const res = await service.releaseSeats('usr_bob', {
       showtimeId: 'st_456',
       seatIds: ['A1'],
+      reservationId: 'res_wrong_token',
     });
 
-    // Seat A1 was NOT released because Bob is not the owner
     expect(res.releasedSeats).toEqual([]);
     expect(websocketMock.broadcastSeatState).not.toHaveBeenCalled();
   });
 
-  // Scenario 5: A failed multi-seat reservation rolls back earlier locks
-  it('Scenario 5: A failed multi-seat reservation rolls back earlier locks', async () => {
+  it('A failed multi-seat reservation rolls back earlier locks using the reservation token', async () => {
     prismaMock.showtime.findUnique.mockResolvedValue({
       id: 'st_456',
       startTime: new Date(Date.now() + 3600 * 1000),
@@ -127,18 +125,19 @@ describe('BookingService Scenarios', () => {
       }),
     ).rejects.toThrow(ConflictException);
 
-    // Verify A1 was rolled back
-    expect(redisMock.releaseSeatLock).toHaveBeenCalledWith('st_456', 'A1', 'usr_alice');
+    // Verify A1 was rolled back with the same reservationId that was used to lock it
+    expect(redisMock.releaseSeatLock).toHaveBeenCalledWith('st_456', 'A1', expect.stringMatching(/^res_/));
     expect(websocketMock.broadcastSeatState).toHaveBeenCalledWith('st_456', 'A1', 'AVAILABLE');
   });
 
-  // Scenario 6: An expired reservation cannot be checked out
-  it('Scenario 6: An expired reservation cannot be checked out', async () => {
-    // Redis returns null because TTL expired or key does not exist
-    redisMock.getSeatLockHolder.mockResolvedValue(null);
+  it('One user with two separate reservation sessions cannot cross-release or checkout each other', async () => {
+    // Reservation A owns A1
+    redisMock.getSeatLockHolder.mockResolvedValue('res_session_A');
 
+    // Attempting to checkout with session B token fails
     await expect(
       service.checkout('usr_alice', {
+        reservationId: 'res_session_B',
         showtimeId: 'st_456',
         seatIds: ['A1'],
         paymentMethod: 'MOCK_GATEWAY',
@@ -146,13 +145,25 @@ describe('BookingService Scenarios', () => {
     ).rejects.toThrow(ConflictException);
   });
 
-  // Scenario 7: An expired seat becomes available (Redis TTL expiry)
-  it('Scenario 7: An expired seat holder is null and can be re-locked', async () => {
+  it('An expired reservation cannot be checked out', async () => {
+    // Redis returns null because TTL expired or key does not exist
+    redisMock.getSeatLockHolder.mockResolvedValue(null);
+
+    await expect(
+      service.checkout('usr_alice', {
+        reservationId: 'res_alice_123',
+        showtimeId: 'st_456',
+        seatIds: ['A1'],
+        paymentMethod: 'MOCK_GATEWAY',
+      }),
+    ).rejects.toThrow(ConflictException);
+  });
+
+  it('An expired seat holder is null and can be re-locked by another user', async () => {
     redisMock.getSeatLockHolder.mockResolvedValue(null);
     const holder = await redisMock.getSeatLockHolder('st_456', 'A1');
     expect(holder).toBeNull();
 
-    // Now another user can acquire it
     redisMock.acquireSeatLock.mockResolvedValue(true);
     prismaMock.showtime.findUnique.mockResolvedValue({
       id: 'st_456',
@@ -166,8 +177,24 @@ describe('BookingService Scenarios', () => {
     expect(res.heldSeats).toEqual(['A1']);
   });
 
-  // Scenario 15: A user cannot access another user's booking
-  it("Scenario 15: A user cannot access another user's booking", async () => {
+  it('Fails safely when Redis is unavailable', async () => {
+    prismaMock.showtime.findUnique.mockResolvedValue({
+      id: 'st_456',
+      startTime: new Date(Date.now() + 3600 * 1000),
+    });
+    redisMock.acquireSeatLock.mockRejectedValue(
+      new ServiceUnavailableException('Redis distributed locking service is unavailable'),
+    );
+
+    await expect(
+      service.holdSeats('usr_alice', {
+        showtimeId: 'st_456',
+        seatIds: ['A1'],
+      }),
+    ).rejects.toThrow(ServiceUnavailableException);
+  });
+
+  it("A user cannot access another user's booking (IDOR protection)", async () => {
     prismaMock.booking.findUnique.mockResolvedValue({
       id: 'bkg_123',
       userId: 'usr_alice',

@@ -12,6 +12,14 @@ import { RedisService } from '../redis/redis.service';
 import * as QRCode from 'qrcode';
 import * as crypto from 'crypto';
 
+/**
+ * PaymentService handles mock payment gateway simulation and idempotent callback processing.
+ *
+ * NOTE FOR CODE REVIEW / INTERVIEWS:
+ * The HMAC signature generated and verified here is a simulation mechanism for a sandbox/mock
+ * payment gateway, illustrating how real gateways (Stripe, Razorpay, VNPay) use cryptographic
+ * webhooks to verify caller authenticity.
+ */
 @Injectable()
 export class PaymentService {
   private readonly logger = new Logger(PaymentService.name);
@@ -28,7 +36,7 @@ export class PaymentService {
   }
 
   /**
-   * Generates a tamper-proof simulated signature for mock payment validation
+   * Generates a tamper-proof simulated signature for mock payment sandbox validation
    */
   generatePaymentSignature(bookingId: string, amount: number): string {
     return crypto
@@ -38,7 +46,7 @@ export class PaymentService {
   }
 
   /**
-   * Verifies payment signature using timing-safe comparison
+   * Verifies payment signature using constant-time comparison to prevent timing attacks
    */
   verifyPaymentSignature(bookingId: string, amount: number, signature: string): boolean {
     if (!signature) return false;
@@ -50,7 +58,7 @@ export class PaymentService {
   }
 
   /**
-   * Creates a mock payment gateway URL with QR payload and simulated signature
+   * Creates a mock payment gateway URL with QR payload and simulated HMAC signature
    */
   async createMockPaymentUrl(bookingId: string, amount: number) {
     const booking = await this.prisma.booking.findUnique({ where: { id: bookingId } });
@@ -63,8 +71,8 @@ export class PaymentService {
     }
 
     const signature = this.generatePaymentSignature(bookingId, amount);
-    const mockHost = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
-    const paymentUrl = `${mockHost}/payment/mock-gateway?bookingId=${bookingId}&amount=${amount}&signature=${signature}`;
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
+    const paymentUrl = `${frontendUrl}/payment/mock-gateway?bookingId=${bookingId}&amount=${amount}&signature=${signature}`;
 
     const qrPayload = `TRUETIX_PAY:${bookingId}:${amount}:${signature.substring(0, 8)}`;
     const qrDataUrl = await QRCode.toDataURL(qrPayload);
@@ -85,14 +93,30 @@ export class PaymentService {
   }
 
   /**
-   * Atomically and idempotently processes successful payment callback:
-   * 1. Validates booking existence and expected amount.
-   * 2. Verifies HMAC provider signature.
-   * 3. Uses atomic conditional update (WHERE status = 'PENDING_PAYMENT') to prevent race conditions.
-   * 4. Updates booking -> PAID and seats -> SOLD in a database transaction.
-   * 5. Releases Redis locks and broadcasts SOLD via Socket.IO.
+   * Processes a successful payment callback idempotently:
+   * 1. Validates that signature is non-empty and cryptographically valid.
+   * 2. Validates that booking exists and paid amount matches expected total.
+   * 3. Validates booking state (PENDING_PAYMENT). If already PAID, returns cached success.
+   * 4. In an isolated PostgreSQL transaction ($transaction):
+   *    - Conditionally updates Booking from PENDING_PAYMENT to PAID.
+   *    - Marks all associated seats as SOLD in showtime_seats.
+   *    - Asserts that updated seat count equals expected ticket count; rolls back if mismatch.
+   * 5. Post-commit:
+   *    - Force releases temporary Redis locks and broadcasts SOLD to connected WebSockets.
+   *    - If Redis fails post-commit, PostgreSQL remains authoritative.
    */
-  async processSuccessfulPayment(bookingId: string, paidAmount: number, signature?: string, paymentMethod = 'MOCK_GATEWAY') {
+  async processSuccessfulPayment(
+    bookingId: string,
+    paidAmount: number,
+    signature: string,
+    paymentMethod = 'MOCK_GATEWAY',
+  ) {
+    // 1. Mandatory non-empty signature requirement
+    if (!signature || typeof signature !== 'string' || signature.trim() === '') {
+      throw new BadRequestException('Payment provider signature is required');
+    }
+
+    // 2. Validate booking existence
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: { tickets: true },
@@ -102,29 +126,29 @@ export class PaymentService {
       throw new NotFoundException(`Booking not found: ${bookingId}`);
     }
 
-    // Idempotency: If already paid, safely return current state without re-executing points/seats
+    // 3. Idempotency: If already paid, safely return current record without re-running transactions
     if (booking.status === 'PAID') {
       this.logger.log(`Booking ${bookingId} already marked PAID. Returning idempotent success.`);
-      return { success: true, booking, message: 'Booking already paid (idempotent)' };
+      return { success: true, data: booking, message: 'Booking already paid (idempotent)' };
     }
 
     if (booking.status === 'CANCELLED' || booking.status === 'EXPIRED') {
       throw new BadRequestException(`Cannot process payment for ${booking.status.toLowerCase()} booking`);
     }
 
-    // Validate expected amount
+    // 4. Validate expected amount
     if (Number(paidAmount) !== Number(booking.totalAmount)) {
       throw new BadRequestException(
         `Payment amount mismatch: expected ${booking.totalAmount}, got ${paidAmount}`,
       );
     }
 
-    // Verify simulated signature if provided
-    if (signature && !this.verifyPaymentSignature(bookingId, paidAmount, signature)) {
+    // 5. Verify cryptographic signature
+    if (!this.verifyPaymentSignature(bookingId, paidAmount, signature)) {
       throw new BadRequestException('Invalid payment provider signature');
     }
 
-    // Atomic Database Transaction with conditional update
+    // 6. Atomic Database Transaction
     const updatedBooking = await this.prisma.$transaction(async (tx) => {
       // Atomic conditional update ensures only ONE concurrent callback can succeed
       const updateResult = await tx.booking.updateMany({
@@ -150,59 +174,44 @@ export class PaymentService {
         throw new ConflictException('Booking is no longer pending payment');
       }
 
-      // Fetch updated booking
-      const b = await tx.booking.findUnique({
+      // Mark all booked seats as permanently SOLD in PostgreSQL
+      const seatIds = booking.tickets.map((t) => t.seatId);
+      if (seatIds.length > 0) {
+        const seatUpdateResult = await tx.showtimeSeat.updateMany({
+          where: {
+            showtimeId: booking.showtimeId,
+            seatId: { in: seatIds },
+            status: { not: 'SOLD' },
+          },
+          data: { status: 'SOLD' },
+        });
+
+        // Ensure every seat was successfully transitioned. If mismatch, roll back entire transaction.
+        if (seatUpdateResult.count !== seatIds.length) {
+          throw new ConflictException(
+            `Seat finalization mismatch: expected ${seatIds.length} seats, updated ${seatUpdateResult.count}`,
+          );
+        }
+      }
+
+      const finalRecord = await tx.booking.findUnique({
         where: { id: bookingId },
         include: { tickets: true },
       });
 
-      if (!b) throw new NotFoundException('Booking not found');
-
-      // Mark all booked seats as permanently SOLD in PostgreSQL
-      const seatIds = b.tickets.map((t) => t.seatId);
-      if (seatIds.length > 0) {
-        await tx.showtimeSeat.updateMany({
-          where: {
-            showtimeId: b.showtimeId,
-            seatId: { in: seatIds },
-          },
-          data: { status: 'SOLD' },
-        });
-      }
-
-      // Reward points update
-      const netPointsChange = b.cgvPointsEarned - b.cgvPointsUsed;
-      if (netPointsChange > 0) {
-        await tx.user.update({
-          where: { id: b.userId },
-          data: {
-            points: { increment: netPointsChange },
-          },
-        });
-      }
-
-      // Mark voucher as used if applicable
-      if (b.voucherId) {
-        await tx.userVoucher.updateMany({
-          where: {
-            userId: b.userId,
-            voucherId: b.voucherId,
-            isUsed: false,
-          },
-          data: {
-            isUsed: true,
-            usedAt: new Date(),
-          },
-        });
-      }
-
-      return b;
+      if (!finalRecord) throw new NotFoundException('Booking not found after update');
+      return finalRecord;
     });
 
-    // Post-transaction: Force release Redis temporary locks & broadcast real-time SOLD state
-    for (const t of updatedBooking.tickets) {
-      await this.redisService.forceReleaseSeatLock(updatedBooking.showtimeId, t.seatId);
-      this.websocketGateway.broadcastSeatState(updatedBooking.showtimeId, t.seatId, 'SOLD');
+    // 7. Post-Transaction: Force release Redis temporary locks & broadcast real-time SOLD state
+    // Wrapped in try/catch so if Redis is temporarily unreachable, PostgreSQL remains the authority
+    try {
+      for (const t of updatedBooking.tickets) {
+        await this.redisService.forceReleaseSeatLock(updatedBooking.showtimeId, t.seatId);
+        this.websocketGateway.broadcastSeatState(updatedBooking.showtimeId, t.seatId, 'SOLD');
+      }
+    } catch (err: any) {
+      this.logger.warn(`Post-commit Redis lock cleanup failed: ${err.message}. PostgreSQL remains authoritative.`);
     }
 
     return {
@@ -235,9 +244,13 @@ export class PaymentService {
     });
 
     // Release Redis seat locks so seats become available again
-    for (const t of booking.tickets) {
-      await this.redisService.forceReleaseSeatLock(booking.showtimeId, t.seatId);
-      this.websocketGateway.broadcastSeatState(booking.showtimeId, t.seatId, 'AVAILABLE');
+    try {
+      for (const t of booking.tickets) {
+        await this.redisService.forceReleaseSeatLock(booking.showtimeId, t.seatId);
+        this.websocketGateway.broadcastSeatState(booking.showtimeId, t.seatId, 'AVAILABLE');
+      }
+    } catch (err: any) {
+      this.logger.warn(`Failed to release seat locks on payment cancellation: ${err.message}`);
     }
 
     return { success: true, message: 'Booking marked as cancelled and seats released' };

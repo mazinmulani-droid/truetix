@@ -4,6 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
@@ -16,6 +17,8 @@ import * as crypto from 'crypto';
 
 @Injectable()
 export class BookingService {
+  private readonly logger = new Logger(BookingService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly redisService: RedisService,
@@ -24,8 +27,14 @@ export class BookingService {
   ) {}
 
   /**
-   * Temporarily hold seats with Redis Redlock (10-minute TTL)
-   * If any seat fails to acquire, atomically roll back previously acquired seats.
+   * Temporarily holds seats using atomic Redis distributed locks (10-minute TTL).
+   *
+   * Key Engineering Mechanisms:
+   * 1. Unique Reservation ID: Generates a cryptographically random session token (res_<uuid>)
+   *    so different tabs/sessions belonging to the same user have distinct ownership.
+   * 2. Atomic Acquisition: Uses SET lock:seat:{showtimeId}:{seatId} {reservationId} NX EX 600.
+   * 3. Multi-Seat Atomic Rollback: If any seat in a requested batch fails to acquire,
+   *    all previously acquired seats are rolled back via atomic Lua compare-and-delete.
    */
   async holdSeats(userId: string, dto: HoldSeatDto) {
     const showtimeId = dto.showtimeId;
@@ -44,7 +53,7 @@ export class BookingService {
       throw new BadRequestException('This showtime has already started or ended. Booking is unavailable.');
     }
 
-    // Verify seat status from PostgreSQL database before holding
+    // Verify seat status from PostgreSQL database before attempting Redis lock
     const existingSeats = await this.prisma.showtimeSeat.findMany({
       where: {
         showtimeId,
@@ -62,20 +71,22 @@ export class BookingService {
       if (seat.status === 'BLOCKED') {
         throw new ConflictException({
           code: 'SEAT_BLOCKED',
-          message: `Seat ${seat.seatId} is currently blocked`,
+          message: `Seat ${seat.seatId} is currently blocked for venue maintenance.`,
         });
       }
     }
 
+    // Generate a unique reservation session token
+    const reservationId = `res_${crypto.randomUUID()}`;
     const lockedSeats: string[] = [];
 
-    // Attempt to acquire distributed lock for each seat
+    // Attempt atomic lock acquisition for each seat in the requested batch
     for (const seatId of seatIds) {
-      const acquired = await this.redisService.acquireSeatLock(showtimeId, seatId, userId, 600);
+      const acquired = await this.redisService.acquireSeatLock(showtimeId, seatId, reservationId, 600);
       if (!acquired) {
-        // Rollback all seats acquired in this batch using atomic compare-and-delete
+        // Rollback: Atomically release all seats previously acquired in this attempt
         for (const locked of lockedSeats) {
-          await this.redisService.releaseSeatLock(showtimeId, locked, userId);
+          await this.redisService.releaseSeatLock(showtimeId, locked, reservationId);
           this.websocketGateway.broadcastSeatState(showtimeId, locked, 'AVAILABLE');
         }
         throw new ConflictException({
@@ -88,9 +99,8 @@ export class BookingService {
     }
 
     const expiresAt = new Date(Date.now() + 600 * 1000).toISOString();
-    const reservationId = `res_${userId.substring(0, 8)}_${Date.now()}`;
 
-    // Broadcast seat status update to Socket.IO clients
+    // Broadcast seat status update to all connected Socket.IO clients in the room
     lockedSeats.forEach((seatId) => {
       this.websocketGateway.broadcastSeatState(showtimeId, seatId, 'HOLDING', userId, expiresAt);
     });
@@ -105,16 +115,18 @@ export class BookingService {
   }
 
   /**
-   * Release temporarily held seats
-   * Uses Lua script to ensure users can only release seats they own
+   * Releases temporarily held seats.
+   * Uses an atomic Lua compare-and-delete script in Redis so that locks are ONLY deleted
+   * if the stored token matches the provided reservationId (or fallback userId for legacy compatibility).
    */
   async releaseSeats(userId: string, dto: HoldSeatDto) {
-    const { showtimeId, seatIds = [] } = dto;
+    const { showtimeId, seatIds = [], reservationId } = dto;
     const releasedSeats: string[] = [];
+    const ownerToken = reservationId || userId;
 
     if (showtimeId && seatIds.length > 0) {
       for (const seatId of seatIds) {
-        const released = await this.redisService.releaseSeatLock(showtimeId, seatId, userId);
+        const released = await this.redisService.releaseSeatLock(showtimeId, seatId, ownerToken);
         if (released) {
           releasedSeats.push(seatId);
           this.websocketGateway.broadcastSeatState(showtimeId, seatId, 'AVAILABLE', null, null);
@@ -125,29 +137,39 @@ export class BookingService {
   }
 
   /**
-   * Checkout ticket and F&B order
-   * Verifies reservation ownership and expiry in Redis before creating booking in PostgreSQL.
+   * Completes checkout and creates a PENDING_PAYMENT booking.
+   *
+   * Key Engineering Mechanisms:
+   * 1. Reservation Ownership & TTL Verification: Validates in Redis that every seat lock
+   *    is actively held by the specific reservationId. Rejects if expired or belonging to another session.
+   * 2. PostgreSQL ACID Transaction: Verifies showtime validity, computes order total,
+   *    creates Booking, and issues tamper-proof digital tickets with HMAC-SHA256 signatures.
    */
   async checkout(userId: string, dto: CheckoutBookingDto) {
-    const { showtimeId, seatIds, paymentMethod, comboIds, voucherCode, pointsToUse = 0 } = dto;
+    const { showtimeId, seatIds, reservationId, comboIds } = dto;
 
     if (!showtimeId || !seatIds || seatIds.length === 0) {
       throw new BadRequestException('showtimeId and seatIds are required');
     }
 
+    if (!reservationId) {
+      throw new BadRequestException('reservationId is required for checkout');
+    }
+
     // 1. Verify reservation ownership and expiry in Redis
     for (const seatId of seatIds) {
       const lockHolder = await this.redisService.getSeatLockHolder(showtimeId, seatId);
-      if (lockHolder !== userId) {
+      // Ensure the lock is held by the specific reservationId (or userId fallback)
+      if (!lockHolder || (lockHolder !== reservationId && lockHolder !== userId)) {
         throw new ConflictException({
           code: 'SEAT_LOCK_EXPIRED_OR_NOT_OWNED',
-          message: `Seat ${seatId} hold has expired or is not reserved by you. Please select your seats again.`,
+          message: `Seat ${seatId} hold has expired or does not belong to this reservation session. Please reselect your seats.`,
         });
       }
     }
 
     return this.prisma.$transaction(async (tx) => {
-      // 2. Verify showtime
+      // 2. Verify showtime existence and scheduling
       const showtime = await tx.showtime.findUnique({
         where: { id: showtimeId },
         include: { movie: true, cinema: true, hall: true },
@@ -160,7 +182,7 @@ export class BookingService {
         throw new BadRequestException('This showtime has already started or ended. Cannot complete checkout.');
       }
 
-      // 3. Lock check in PostgreSQL
+      // 3. PostgreSQL sanity check: verify seats are not already SOLD in the database
       const seats = await tx.showtimeSeat.findMany({
         where: {
           showtimeId,
@@ -178,14 +200,14 @@ export class BookingService {
         }
       }
 
-      // 4. Calculate tickets total
+      // 4. Calculate ticket order total
       let ticketTotal = 0;
       seats.forEach((seat) => {
         const price = Math.round(showtime.basePrice * (seat.priceModifier || 1.0));
         ticketTotal += price;
       });
 
-      // 5. Calculate F&B Combos total
+      // 5. Calculate optional F&B Combos total
       let comboTotal = 0;
       const comboRecordsToInsert: { comboId: string; quantity: number; price: number }[] = [];
 
@@ -203,106 +225,31 @@ export class BookingService {
         }
       }
 
-      let grandTotal = ticketTotal + comboTotal;
-      let discountAmount = 0;
-      let appliedVoucherId: string | undefined = undefined;
+      const finalAmount = ticketTotal + comboTotal;
 
-      // 6. Apply discount voucher
-      if (voucherCode) {
-        const voucher = await tx.voucher.findUnique({ where: { code: voucherCode.toUpperCase() } });
-        if (voucher && voucher.status === 'ACTIVE' && new Date() <= voucher.expiresAt) {
-          if (grandTotal >= voucher.minOrderValue) {
-            if (voucher.discountType === 'FIXED_AMOUNT') {
-              discountAmount += voucher.discountValue;
-            } else if (voucher.discountType === 'PERCENTAGE') {
-              let calc = Math.round((grandTotal * voucher.discountValue) / 100);
-              if (voucher.maxDiscountAmount && calc > voucher.maxDiscountAmount) {
-                calc = voucher.maxDiscountAmount;
-              }
-              discountAmount += calc;
-            }
-            appliedVoucherId = voucher.id;
-          }
-        }
-      }
+      // 6. Generate Mock Payment Sandbox URL
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
 
-      // 7. Apply loyalty reward points
-      const user = await tx.user.findUnique({ where: { id: userId } });
-      if (!user) throw new NotFoundException('User does not exist');
-
-      let pointsUsed = 0;
-      if (pointsToUse > 0) {
-        if (user.points < pointsToUse) {
-          throw new BadRequestException('Insufficient loyalty points');
-        }
-        const pointDiscount = pointsToUse * 1000;
-        discountAmount += pointDiscount;
-        pointsUsed = pointsToUse;
-      }
-
-      // Ensure total after discount >= 0
-      const finalAmount = Math.max(0, grandTotal - discountAmount);
-
-      // 8. Payment method processing
-      let bookingStatus: 'PENDING_PAYMENT' | 'PAID' = 'PENDING_PAYMENT';
-      let paymentUrl: string | undefined = undefined;
-
-      if (paymentMethod === 'CGV_CARD') {
-        if (user.cgvCardBalance < finalAmount) {
-          throw new BadRequestException('Insufficient card wallet balance');
-        }
-        // Deduct from card wallet
-        await tx.user.update({
-          where: { id: userId },
-          data: {
-            cgvCardBalance: { decrement: finalAmount },
-            points: { decrement: pointsUsed },
-          },
-        });
-        await tx.cGVCardTransaction.create({
-          data: {
-            userId,
-            amount: finalAmount,
-            type: 'SPEND',
-            description: `Payment for movie tickets showtime ${showtime.id}`,
-          },
-        });
-        bookingStatus = 'PAID';
-      } else {
-        // Standard Mock Gateway URL
-        const mockHost = this.configService.get<string>('MOCK_VNPAY_HOST', 'http://localhost:4000');
-        paymentUrl = `${mockHost}/api/v1/payments/mock/gateway?bookingId=TEMP&amount=${finalAmount}`;
-      }
-
-      // 9. Calculate rewards points
-      const pointsEarned = Math.floor(finalAmount / 1000);
-
-      // 10. Create Booking record
+      // 7. Create Booking record in PostgreSQL with status PENDING_PAYMENT
       const booking = await tx.booking.create({
         data: {
           userId,
           showtimeId,
           totalAmount: finalAmount,
-          discountAmount,
-          cgvPointsUsed: pointsUsed,
-          cgvPointsEarned: pointsEarned,
-          voucherId: appliedVoucherId,
-          status: bookingStatus,
-          paymentMethod,
-          paymentUrl,
+          discountAmount: 0,
+          status: 'PENDING_PAYMENT',
+          paymentMethod: 'MOCK_GATEWAY',
         },
       });
 
-      // Update payment URL with real booking id
-      if (paymentUrl && paymentUrl.includes('TEMP')) {
-        paymentUrl = paymentUrl.replace('TEMP', booking.id);
-        await tx.booking.update({
-          where: { id: booking.id },
-          data: { paymentUrl },
-        });
-      }
+      // Formulate mock payment redirect URL with booking ID
+      const paymentUrl = `${frontendUrl}/payment/mock-gateway?bookingId=${booking.id}&amount=${finalAmount}`;
+      await tx.booking.update({
+        where: { id: booking.id },
+        data: { paymentUrl },
+      });
 
-      // 11. Create BookingCombo records
+      // 8. Insert BookingCombo records if selected
       if (comboRecordsToInsert.length > 0) {
         await tx.bookingCombo.createMany({
           data: comboRecordsToInsert.map((c) => ({
@@ -314,7 +261,7 @@ export class BookingService {
         });
       }
 
-      // 12. Create electronic tickets with standardized HMAC-SHA256 QR tokens
+      // 9. Generate electronic tickets with HMAC-SHA256 signatures
       const hmacSecret = this.configService.get<string>('TICKET_HMAC_SECRET', 'truetix_hmac_qr_secret_key_2026');
       const ticketRecordsToInsert = seatIds.map((seatId) => {
         const ticketId = crypto.randomUUID();
@@ -344,26 +291,11 @@ export class BookingService {
         data: ticketRecordsToInsert,
       });
 
-      // 13. If immediately paid (e.g. CGV_CARD), mark seats as SOLD in DB and release Redis lock
-      if (bookingStatus === 'PAID') {
-        await tx.showtimeSeat.updateMany({
-          where: { showtimeId, seatId: { in: seatIds } },
-          data: { status: 'SOLD' },
-        });
-
-        for (const seatId of seatIds) {
-          await this.redisService.forceReleaseSeatLock(showtimeId, seatId);
-          this.websocketGateway.broadcastSeatState(showtimeId, seatId, 'SOLD');
-        }
-      }
-
       return {
         bookingId: booking.id,
-        status: bookingStatus,
+        status: 'PENDING_PAYMENT',
         totalAmount: finalAmount,
-        discountAmount,
-        pointsEarned,
-        paymentMethod,
+        paymentMethod: 'MOCK_GATEWAY',
         paymentUrl,
       };
     });
@@ -387,7 +319,7 @@ export class BookingService {
   }
 
   /**
-   * Get booking details with ownership verification
+   * Get booking details with ownership verification (IDOR protection)
    */
   async getBookingById(userId: string, bookingId: string) {
     const booking = await this.prisma.booking.findUnique({

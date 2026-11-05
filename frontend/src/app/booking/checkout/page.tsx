@@ -23,7 +23,7 @@ export default function CheckoutPage() {
   } = useBookingStore();
 
   const { isAuthenticated, accessToken } = useAuthStore();
-  const [paymentMethod, setPaymentMethod] = useState<'MOCK_GATEWAY' | 'CGV_CARD'>('MOCK_GATEWAY');
+  const [paymentMethod] = useState<'MOCK_GATEWAY'>('MOCK_GATEWAY');
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
@@ -137,14 +137,9 @@ export default function CheckoutPage() {
               </CardHeader>
 
               <CardContent className="space-y-4 pt-6">
-                {/* Option 1: Mock Payment Gateway */}
+                {/* Payment Option: Mock Payment Gateway */}
                 <div
-                  className={`p-4 border rounded-xl cursor-pointer flex items-center justify-between transition-all ${
-                    paymentMethod === 'MOCK_GATEWAY'
-                      ? 'border-primary bg-primary/10 shadow-[0_0_15px_rgba(225,29,72,0.2)]'
-                      : 'border-white/10 hover:border-white/30 bg-black/40'
-                  }`}
-                  onClick={() => setPaymentMethod('MOCK_GATEWAY')}
+                  className="p-4 border rounded-xl flex items-center justify-between border-primary bg-primary/10 shadow-[0_0_15px_rgba(225,29,72,0.2)]"
                 >
                   <div className="flex items-center gap-4">
                     <div className="bg-blue-500/20 p-3 rounded-lg text-blue-400 border border-blue-500/30">
@@ -159,45 +154,8 @@ export default function CheckoutPage() {
                       </p>
                     </div>
                   </div>
-                  <div
-                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                      paymentMethod === 'MOCK_GATEWAY' ? 'border-primary' : 'border-muted'
-                    }`}
-                  >
-                    {paymentMethod === 'MOCK_GATEWAY' && (
-                      <div className="w-3 h-3 bg-primary rounded-full shadow-[0_0_8px_rgba(225,29,72,0.8)]" />
-                    )}
-                  </div>
-                </div>
-
-                {/* Option 2: TrueTix Card Wallet */}
-                <div
-                  className={`p-4 border rounded-xl cursor-pointer flex items-center justify-between transition-all ${
-                    paymentMethod === 'CGV_CARD'
-                      ? 'border-primary bg-primary/10 shadow-[0_0_15px_rgba(225,29,72,0.2)]'
-                      : 'border-white/10 hover:border-white/30 bg-black/40'
-                  }`}
-                  onClick={() => setPaymentMethod('CGV_CARD')}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="bg-primary/20 p-3 rounded-lg text-primary border border-primary/30">
-                      <Wallet className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-white text-base">TrueTix Card / Wallet Balance</h3>
-                      <p className="text-xs text-muted-foreground">
-                        Instant 1-click debit from membership account balance
-                      </p>
-                    </div>
-                  </div>
-                  <div
-                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                      paymentMethod === 'CGV_CARD' ? 'border-primary' : 'border-muted'
-                    }`}
-                  >
-                    {paymentMethod === 'CGV_CARD' && (
-                      <div className="w-3 h-3 bg-primary rounded-full shadow-[0_0_8px_rgba(225,29,72,0.8)]" />
-                    )}
+                  <div className="w-6 h-6 rounded-full border-2 flex items-center justify-center border-primary">
+                    <div className="w-3 h-3 bg-primary rounded-full shadow-[0_0_8px_rgba(225,29,72,0.8)]" />
                   </div>
                 </div>
 

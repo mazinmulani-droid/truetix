@@ -3,7 +3,7 @@ import { TicketService } from './ticket.service';
 import { TicketTokenUtil } from '../../common/utils/ticket-token.util';
 import { ConflictException, UnprocessableEntityException } from '@nestjs/common';
 
-describe('TicketService Scenarios', () => {
+describe('TicketService Tests', () => {
   let service: TicketService;
   let prismaMock: any;
   let configMock: any;
@@ -30,9 +30,7 @@ describe('TicketService Scenarios', () => {
     service = new TicketService(prismaMock, configMock);
   });
 
-  // Scenario 10: Invalid QR signatures are rejected
-  it('Scenario 10: Invalid QR signatures are rejected with UnprocessableEntityException', async () => {
-    // Generate valid payload but sign with forged wrong secret
+  it('Rejects tickets with invalid or forged HMAC signatures', async () => {
     const token = TicketTokenUtil.generateToken(
       {
         ticketId: 'tkt_001',
@@ -49,8 +47,38 @@ describe('TicketService Scenarios', () => {
     ).rejects.toThrow(UnprocessableEntityException);
   });
 
-  // Scenario 11: Valid QR tickets for unpaid bookings are rejected
-  it('Scenario 11: Valid QR tickets for unpaid bookings are rejected', async () => {
+  it('Rejects tickets when payload identifiers do not match the database record', async () => {
+    const token = TicketTokenUtil.generateToken(
+      {
+        ticketId: 'tkt_001',
+        bookingId: 'bkg_WRONG',
+        showtimeId: 'st_456',
+        seatId: 'H12',
+        userId: 'usr_789',
+      },
+      secret,
+    );
+
+    prismaMock.ticket.findUnique.mockResolvedValue({
+      id: 'tkt_001',
+      bookingId: 'bkg_REAL',
+      seatId: 'H12',
+      status: 'UNUSED',
+      booking: {
+        userId: 'usr_789',
+        showtimeId: 'st_456',
+        status: 'PAID',
+        showtime: { movie: {}, cinema: {}, hall: {} },
+        combos: [],
+      },
+    });
+
+    await expect(
+      service.verifyQrTicket('turnstile-secret-key-2026', token),
+    ).rejects.toThrow(UnprocessableEntityException);
+  });
+
+  it('Rejects tickets for unpaid bookings', async () => {
     const token = TicketTokenUtil.generateToken(
       {
         ticketId: 'tkt_001',
@@ -65,9 +93,12 @@ describe('TicketService Scenarios', () => {
     // Booking status is PENDING_PAYMENT (unpaid)
     prismaMock.ticket.findUnique.mockResolvedValue({
       id: 'tkt_001',
+      bookingId: 'bkg_123',
       seatId: 'H12',
       status: 'UNUSED',
       booking: {
+        userId: 'usr_789',
+        showtimeId: 'st_456',
         status: 'PENDING_PAYMENT',
         showtime: { movie: {}, cinema: {}, hall: {} },
         combos: [],
@@ -79,8 +110,26 @@ describe('TicketService Scenarios', () => {
     ).rejects.toThrow(UnprocessableEntityException);
   });
 
-  // Scenario 12: A ticket cannot be checked in twice
-  it('Scenario 12: A ticket cannot be checked in twice', async () => {
+  it('Rejects expired tickets where showtime has ended', async () => {
+    const pastTimestamp = Math.floor(Date.now() / 1000) - 3600; // 1 hour ago
+    const token = TicketTokenUtil.generateToken(
+      {
+        ticketId: 'tkt_001',
+        bookingId: 'bkg_123',
+        showtimeId: 'st_456',
+        seatId: 'H12',
+        userId: 'usr_789',
+        exp: pastTimestamp,
+      },
+      secret,
+    );
+
+    await expect(
+      service.verifyQrTicket('turnstile-secret-key-2026', token),
+    ).rejects.toThrow(UnprocessableEntityException);
+  });
+
+  it('A ticket cannot be checked in twice', async () => {
     const token = TicketTokenUtil.generateToken(
       {
         ticketId: 'tkt_001',
@@ -94,9 +143,12 @@ describe('TicketService Scenarios', () => {
 
     prismaMock.ticket.findUnique.mockResolvedValue({
       id: 'tkt_001',
+      bookingId: 'bkg_123',
       seatId: 'H12',
       status: 'CHECKED_IN',
       booking: {
+        userId: 'usr_789',
+        showtimeId: 'st_456',
         status: 'PAID',
         showtime: { movie: {}, cinema: {}, hall: {} },
         combos: [],
@@ -111,8 +163,7 @@ describe('TicketService Scenarios', () => {
     ).rejects.toThrow(ConflictException);
   });
 
-  // Scenario 13: Simultaneous check-in requests cannot both succeed
-  it('Scenario 13: Simultaneous check-in requests cannot both succeed (Atomic DB conditional update)', async () => {
+  it('Simultaneous check-in requests cannot both succeed (Atomic DB conditional update)', async () => {
     const token = TicketTokenUtil.generateToken(
       {
         ticketId: 'tkt_001',
@@ -126,9 +177,12 @@ describe('TicketService Scenarios', () => {
 
     prismaMock.ticket.findUnique.mockResolvedValue({
       id: 'tkt_001',
+      bookingId: 'bkg_123',
       seatId: 'H12',
       status: 'UNUSED',
       booking: {
+        userId: 'usr_789',
+        showtimeId: 'st_456',
         status: 'PAID',
         showtime: { movie: { title: 'Test Film' }, cinema: { name: 'Cinema 1' }, hall: { name: 'H1' } },
         combos: [],

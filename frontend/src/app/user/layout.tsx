@@ -9,8 +9,6 @@ import { useEffect, useState } from 'react';
 const navItems = [
   { name: 'Profile', href: '/user', icon: User },
   { name: 'My Tickets', href: '/user/tickets', icon: Ticket },
-  { name: 'TrueTix Card', href: '/user/truetix-card', icon: CreditCard },
-  { name: 'Membership & Rewards', href: '/user/membership', icon: Award },
 ];
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {

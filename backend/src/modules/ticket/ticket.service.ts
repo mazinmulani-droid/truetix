@@ -75,12 +75,17 @@ export class TicketService {
   }
 
   /**
-   * Scanner turnstile validation (POST /tickets/verify-qr)
-   * Enforces:
-   * 1. Valid scanner API secret key
-   * 2. Timing-safe HMAC-SHA256 signature verification
-   * 3. Ticket existence and valid booking payment status (PAID only)
-   * 4. Atomic conditional check-in preventing duplicate/concurrent entry
+   * Scanner turnstile validation endpoint (POST /tickets/verify-qr)
+   *
+   * Key Security & Correctness Controls:
+   * 1. Secret Header Verification: Validates X-Scanner-Key against server config.
+   * 2. Timing-Safe Cryptographic Signature: Verifies HMAC-SHA256 signature using crypto.timingSafeEqual.
+   * 3. Comprehensive Payload Validation: Verifies that ticketId, bookingId, showtimeId, seatId,
+   *    and userId all match the database records exactly.
+   * 4. Expiry Check: Rejects tickets if the showtime has ended.
+   * 5. Paid Verification: Tickets belonging to unpaid or cancelled bookings are denied entry.
+   * 6. Atomic Conditional Check-in: Uses updateMany with WHERE status = 'UNUSED'
+   *    so simultaneous scans at turnstiles cannot both admit the customer.
    */
   async verifyQrTicket(scannerKey: string, qrToken: string) {
     const expectedKey = this.configService.get<string>('TURNSTILE_SECRET_KEY', 'turnstile-secret-key-2026');
@@ -91,14 +96,21 @@ export class TicketService {
     const hmacSecret = this.configService.get<string>('TICKET_HMAC_SECRET', 'truetix_hmac_qr_secret_key_2026');
     const payload = TicketTokenUtil.verifyToken(qrToken, hmacSecret);
 
-    if (!payload || !payload.ticketId) {
+    if (
+      !payload ||
+      !payload.ticketId ||
+      !payload.bookingId ||
+      !payload.showtimeId ||
+      !payload.seatId ||
+      !payload.userId
+    ) {
       throw new UnprocessableEntityException({
         code: 'INVALID_HMAC_SIGNATURE',
-        message: 'Invalid HMAC signature or ticket data has been modified',
+        message: 'Invalid HMAC signature or ticket payload is missing required identifiers',
       });
     }
 
-    // Expiry check
+    // Expiration check
     const nowUnix = Math.floor(Date.now() / 1000);
     if (payload.exp && nowUnix > payload.exp) {
       throw new UnprocessableEntityException({
@@ -123,6 +135,19 @@ export class TicketService {
 
       if (!ticket) {
         throw new NotFoundException('Ticket does not exist in database');
+      }
+
+      // Assert all payload identifiers match the database record exactly
+      if (
+        ticket.bookingId !== payload.bookingId ||
+        ticket.seatId !== payload.seatId ||
+        ticket.booking.showtimeId !== payload.showtimeId ||
+        ticket.booking.userId !== payload.userId
+      ) {
+        throw new UnprocessableEntityException({
+          code: 'TICKET_DATA_MISMATCH',
+          message: 'Ticket payload identifiers do not match the database record',
+        });
       }
 
       // Check payment status - tickets for unpaid bookings cannot be admitted

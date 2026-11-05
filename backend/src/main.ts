@@ -11,13 +11,20 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
 
   // Validate critical security environment variables on startup
-  const criticalSecrets = ['JWT_SECRET', 'JWT_REFRESH_SECRET', 'TICKET_HMAC_SECRET'];
+  const criticalSecrets = [
+    'JWT_SECRET',
+    'JWT_REFRESH_SECRET',
+    'TICKET_HMAC_SECRET',
+    'PAYMENT_HMAC_SECRET',
+    'TURNSTILE_SECRET_KEY',
+  ];
+
   for (const secret of criticalSecrets) {
     if (!process.env[secret]) {
       if (process.env.NODE_ENV === 'production') {
         throw new Error(`CRITICAL: Mandatory security environment variable [${secret}] is not set!`);
       } else {
-        logger.warn(`Security Notice: [${secret}] is not set in environment. Using development fallback.`);
+        logger.warn(`Security Notice: [${secret}] is not set in environment. Using development default.`);
       }
     }
   }
@@ -32,9 +39,10 @@ async function bootstrap() {
     exclude: ['/'],
   });
 
-  // CORS Policy
+  // CORS Policy: restrict to configured FRONTEND_URL in production, allow localhost in development
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
   app.enableCors({
-    origin: true,
+    origin: process.env.NODE_ENV === 'production' ? [frontendUrl] : true,
     credentials: true,
   });
 

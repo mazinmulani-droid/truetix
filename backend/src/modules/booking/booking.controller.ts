@@ -13,13 +13,13 @@ export class BookingController {
   constructor(private readonly bookingService: BookingService) {}
 
   @Post('hold-seat')
-  @ApiOperation({ summary: 'Hold seats temporarily with Redis Redlock (10-minute TTL)' })
+  @ApiOperation({ summary: 'Hold seats temporarily with Redis distributed locks (10-minute TTL)' })
   async holdSeat(@Req() req: any, @Body() dto: HoldSeatDto) {
     return this.bookingService.holdSeats(req.user.id, dto);
   }
 
   @Post('release-seat')
-  @ApiOperation({ summary: 'Release temporarily held seats (authenticated owner only)' })
+  @ApiOperation({ summary: 'Release temporarily held seats (atomic Lua compare-and-delete)' })
   async releaseSeat(@Req() req: any, @Body() dto: HoldSeatDto) {
     return this.bookingService.releaseSeats(req.user.id, dto);
   }

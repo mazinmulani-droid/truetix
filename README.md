@@ -8,7 +8,7 @@
 [![Prisma](https://img.shields.io/badge/orm-Prisma%205-blue.svg)](https://prisma.io)
 [![PostgreSQL](https://img.shields.io/badge/database-PostgreSQL%2015-blue.svg)](https://postgresql.org)
 [![Redis](https://img.shields.io/badge/cache-Redis%207-critical.svg)](https://redis.io)
-[![Tests](https://img.shields.io/badge/tests-19%20passed-success.svg)](https://vitest.dev)
+[![Tests](https://img.shields.io/badge/tests-33%20passed-success.svg)](https://vitest.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
@@ -67,6 +67,7 @@ Comprehensive system design documents are available in the [`docs/`](./docs) dir
 
 | Document | Description |
 |---|---|
+| 📖 [**Engineering Study Guide**](./docs/LEARN_THIS_PROJECT.md) | Comprehensive beginner-friendly walkthrough of the architecture, 7 core files, 5 request traces, and interview Q&As. |
 | 📐 [**Architecture Guide**](./docs/ARCHITECTURE.md) | System components, module boundaries, and layer responsibilities. |
 | 🔄 [**Booking Flow Lifecycle**](./docs/BOOKING_FLOW.md) | End-to-end API sequence diagram, lock lifecycles, and transaction states. |
 | 🗄️ [**Database Schema & Constraints**](./docs/DATABASE.md) | Entity-Relationship Diagram (ERD), table definitions, and data integrity rules. |
@@ -148,20 +149,63 @@ The database seeder pre-configures test accounts (`Password123!`):
 
 ## Testing
 
-The backend includes a comprehensive automated test suite covering distributed locking, rollback, idempotency, QR verification, and concurrent race conditions:
+The backend includes a comprehensive automated test suite with **33 passing tests** across 6 test suites covering distributed locking, rollback, idempotency, QR verification, and concurrent race conditions:
 
 ```bash
 cd backend
 npm test
 ```
 
-### Test Coverage Highlights:
-- **Distributed Locking**: Single-seat lock acquisition, conflict rejection on occupied seats, and lock expiry.
-- **Atomic Lua Release**: Verifies lock owners can release seats and non-owners cannot release another user's hold.
-- **Multi-Seat Rollback**: Verifies that a failure to lock any seat in a batch atomically releases all earlier seats.
-- **Payment Idempotency**: Repeated or concurrent webhook callbacks update 0 rows and return idempotent success.
-- **Turnstile Security**: Signature validation, payment status verification, and atomic duplicate check-in prevention.
-- **Simultaneous Race Conditions**: `Promise.all` concurrency test confirming that when two users reserve the exact same seat simultaneously, exactly one succeeds and one is rejected.
+### Verified Test Results (33 Passed):
+```text
+✓ src/modules/booking/booking.service.spec.ts (10 tests)
+  ✓ User A successfully holds an available seat with a unique reservation ID
+  ✓ User B cannot hold the same seat when already held
+  ✓ The reservation owner can release the seat using their reservation token
+  ✓ Another reservation session cannot release that lock (Lua compare-and-delete check)
+  ✓ A failed multi-seat reservation rolls back earlier locks using the reservation token
+  ✓ One user with two separate reservation sessions cannot cross-release or checkout each other
+  ✓ An expired reservation cannot be checked out
+  ✓ An expired seat holder is null and can be re-locked by another user
+  ✓ Fails safely when Redis is unavailable
+  ✓ A user cannot access another user's booking (IDOR protection)
+
+✓ src/modules/ticket/ticket.service.spec.ts (6 tests)
+  ✓ Rejects tickets with invalid or forged HMAC signatures
+  ✓ Rejects tickets when payload identifiers do not match the database record
+  ✓ Rejects tickets for unpaid bookings
+  ✓ Rejects expired tickets where showtime has ended
+  ✓ A ticket cannot be checked in twice
+  ✓ Simultaneous check-in requests cannot both succeed (Atomic DB conditional update)
+
+✓ src/modules/payment/payment.service.spec.ts (6 tests)
+  ✓ A successful payment marks the booking paid and seats as SOLD
+  ✓ Repeated payment callbacks return idempotent cached success without re-executing transitions
+  ✓ Rejects payment callback when signature is missing
+  ✓ Rejects payment callback when signature is forged or invalid
+  ✓ Rejects payment callback when amount does not match expected booking total
+  ✓ Payment seat update count mismatch triggers transaction rollback
+
+✓ src/modules/redis/redis.service.spec.ts (6 tests)
+  ✓ Throws ServiceUnavailableException when Redis is offline
+  ✓ Successfully acquires lock when seat is available (SET NX EX)
+  ✓ Returns false when lock is already held by someone else
+  ✓ Releases lock using Lua script when owner matches
+  ✓ Fails to release lock when Lua script owner does not match
+  ✓ Force releases lock on payment completion
+
+✓ src/modules/websocket/websocket.gateway.spec.ts (4 tests)
+  ✓ Unauthenticated WebSocket connection without token is immediately rejected and disconnected
+  ✓ Rejects connection when token verification fails
+  ✓ Successfully authenticates connection and stores user identity from verified JWT token
+  ✓ WebSocket Gateway does not independently mutate seat locks (REST is the single authority)
+
+✓ src/modules/booking/booking.concurrency.spec.ts (1 test)
+  ✓ Two users attempt to reserve the exact same seat simultaneously: Exactly one succeeds
+
+Test Files  6 passed (6)
+     Tests  33 passed (33)
+```
 
 ---
 

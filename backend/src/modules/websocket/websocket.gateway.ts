@@ -13,6 +13,16 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { RedisService } from '../redis/redis.service';
 
+/**
+ * WebsocketGateway handles real-time bi-directional communication with clients.
+ *
+ * ARCHITECTURAL PRINCIPLE:
+ * The gateway does NOT mutate booking or seat state. REST BookingService is the sole authority
+ * for holding, releasing, and checking out seats. The gateway strictly handles:
+ * 1. Connection authentication via JWT handshakes.
+ * 2. Room subscriptions (showtime:{id}).
+ * 3. Broadcasting state transitions triggered by authoritative backend services.
+ */
 @WebSocketGateway({
   cors: {
     origin: '*',
@@ -33,7 +43,7 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
 
   onModuleInit() {
     this.redisService.setSeatExpiredCallback((showtimeId, seatId) => {
-      this.logger.log(`Redis Keyspace Notification: Seat ${seatId} showtime ${showtimeId} lock expired. Broadcast AVAILABLE.`);
+      this.logger.log(`Seat ${seatId} showtime ${showtimeId} lock expired. Broadcasting AVAILABLE.`);
       this.broadcastSeatState(showtimeId, seatId, 'AVAILABLE');
     });
   }
@@ -79,67 +89,9 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     this.logger.log(`Client ${client.id} joined showtime room: ${room}`);
   }
 
-  @SubscribeMessage('seat:select')
-  async handleSeatSelect(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { showtimeId: string; seatId: string },
-  ) {
-    if (!data?.showtimeId || !data?.seatId) return;
-    // Derive user identity strictly from verified JWT token
-    const userId = client.data?.user?.sub;
-    if (!userId) {
-      client.emit('seat:error', { code: 'UNAUTHORIZED', message: 'User not authenticated' });
-      return;
-    }
-
-    const locked = await this.redisService.acquireSeatLock(data.showtimeId, data.seatId, userId, 600);
-
-    if (locked) {
-      const expiresAt = new Date(Date.now() + 600 * 1000).toISOString();
-      const payload = {
-        showtimeId: data.showtimeId,
-        seatId: data.seatId,
-        status: 'HOLDING',
-        heldByUserId: userId,
-        expiresAt,
-      };
-      this.server.to(`showtime:${data.showtimeId}`).emit('seat:state_changed', payload);
-    } else {
-      client.emit('seat:error', {
-        code: 'SEAT_ALREADY_HELD',
-        message: `Seat ${data.seatId} is currently reserved by another customer`,
-      });
-    }
-  }
-
-  @SubscribeMessage('seat:deselect')
-  async handleSeatDeselect(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { showtimeId: string; seatId: string },
-  ) {
-    if (!data?.showtimeId || !data?.seatId) return;
-    // Derive user identity strictly from verified JWT token
-    const userId = client.data?.user?.sub;
-    if (!userId) {
-      return;
-    }
-
-    // Atomic Lua release ensuring only the owner can release the lock
-    const released = await this.redisService.releaseSeatLock(data.showtimeId, data.seatId, userId);
-    if (released) {
-      const payload = {
-        showtimeId: data.showtimeId,
-        seatId: data.seatId,
-        status: 'AVAILABLE',
-        heldByUserId: null,
-        expiresAt: null,
-      };
-      this.server.to(`showtime:${data.showtimeId}`).emit('seat:state_changed', payload);
-    }
-  }
-
   /**
-   * Broadcast seat state to all clients in the showtime room
+   * Authoritative broadcast method called by BookingService and PaymentService.
+   * Broadcasts seat state transitions (AVAILABLE, HOLDING, SOLD) to all clients in the showtime room.
    */
   broadcastSeatState(
     showtimeId: string,

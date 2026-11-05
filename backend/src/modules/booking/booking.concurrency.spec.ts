@@ -9,11 +9,38 @@ describe('Concurrency Test: Concurrent Seat Reservation (Double Booking Preventi
   let prismaMock: any;
   let websocketMock: any;
   let configService: ConfigService;
+  let redisStorage: Map<string, string>;
 
   beforeEach(() => {
     configService = new ConfigService();
-    // Use real RedisService in-memory engine to test actual locking concurrency semantics
     redisService = new RedisService(configService);
+
+    // Simulate an atomic Redis engine to test concurrent SET NX semantics
+    redisStorage = new Map<string, string>();
+    const mockRedisClient = {
+      set: async (key: string, val: string, ex: string, ttl: number, nx: string) => {
+        // Atomic NX check
+        if (redisStorage.has(key)) {
+          return null;
+        }
+        redisStorage.set(key, val);
+        return 'OK';
+      },
+      get: async (key: string) => redisStorage.get(key) || null,
+      eval: async (script: string, numKeys: number, key: string, token: string) => {
+        if (redisStorage.get(key) === token) {
+          redisStorage.delete(key);
+          return 1;
+        }
+        return 0;
+      },
+      del: async (key: string) => {
+        redisStorage.delete(key);
+        return 1;
+      },
+    };
+
+    redisService.setConnectedForTesting(true, mockRedisClient);
 
     prismaMock = {
       showtime: {
@@ -67,13 +94,13 @@ describe('Concurrency Test: Concurrent Seat Reservation (Double Booking Preventi
 
     const winner = (fulfilled[0] as PromiseFulfilledResult<any>).value;
     expect(winner.heldSeats).toEqual([seatId]);
+    expect(winner.reservationId).toBeTruthy();
 
     const loser = (rejected[0] as PromiseRejectedResult).reason;
     expect(loser.message).toContain('currently reserved by another customer');
 
-    // Verify in Redis store that the lock is held by the winner
+    // Verify in Redis store that the lock is held by the winner's reservation ID
     const currentHolder = await redisService.getSeatLockHolder(showtimeId, seatId);
-    expect(currentHolder).toBeTruthy();
-    expect(['user_alice', 'user_bob']).toContain(currentHolder);
+    expect(currentHolder).toBe(winner.reservationId);
   });
 });

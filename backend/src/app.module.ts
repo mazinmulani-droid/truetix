@@ -12,7 +12,6 @@ import { RedisModule } from './modules/redis/redis.module';
 import { WebsocketModule } from './modules/websocket/websocket.module';
 import { ComboModule } from './modules/combo/combo.module';
 import { VoucherModule } from './modules/voucher/voucher.module';
-import { CGVCardModule } from './modules/cgv-card/cgv-card.module';
 import { PaymentModule } from './modules/payment/payment.module';
 import { BookingModule } from './modules/booking/booking.module';
 import { TicketModule } from './modules/ticket/ticket.module';
@@ -41,7 +40,6 @@ import { AppController } from './app.controller';
     HomeModule,
     ComboModule,
     VoucherModule,
-    CGVCardModule,
     PaymentModule,
     BookingModule,
     TicketModule,

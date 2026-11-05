@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { WebsocketGateway } from './websocket.gateway';
 
-describe('WebsocketGateway Scenarios', () => {
+describe('WebsocketGateway Tests', () => {
   let gateway: WebsocketGateway;
   let redisMock: any;
   let jwtMock: any;
@@ -10,8 +10,6 @@ describe('WebsocketGateway Scenarios', () => {
   beforeEach(() => {
     redisMock = {
       setSeatExpiredCallback: vi.fn(),
-      acquireSeatLock: vi.fn(),
-      releaseSeatLock: vi.fn(),
     };
     jwtMock = {
       verify: vi.fn(),
@@ -23,8 +21,7 @@ describe('WebsocketGateway Scenarios', () => {
     gateway = new WebsocketGateway(redisMock, jwtMock, configMock);
   });
 
-  // Scenario 14: Unauthenticated WebSocket connections are rejected
-  it('Scenario 14: Unauthenticated WebSocket connection without token is immediately rejected and disconnected', () => {
+  it('Unauthenticated WebSocket connection without token is immediately rejected and disconnected', () => {
     const socketMock: any = {
       id: 'sock_unauth_1',
       handshake: {
@@ -38,7 +35,6 @@ describe('WebsocketGateway Scenarios', () => {
 
     gateway.handleConnection(socketMock);
 
-    // Emits auth_error and disconnects client
     expect(socketMock.emit).toHaveBeenCalledWith('auth_error', { message: 'Authentication required' });
     expect(socketMock.disconnect).toHaveBeenCalledWith(true);
     expect(socketMock.data.user).toBeUndefined();
@@ -83,5 +79,11 @@ describe('WebsocketGateway Scenarios', () => {
 
     expect(socketMock.disconnect).not.toHaveBeenCalled();
     expect(socketMock.data.user).toEqual({ sub: 'user_123', email: 'user@example.com', role: 'CUSTOMER' });
+  });
+
+  it('WebSocket Gateway does not independently mutate seat locks (REST is the single authority)', () => {
+    // Assert that the gateway does not expose seat:select / seat:deselect mutation methods
+    expect((gateway as any).handleSeatSelect).toBeUndefined();
+    expect((gateway as any).handleSeatDeselect).toBeUndefined();
   });
 });
